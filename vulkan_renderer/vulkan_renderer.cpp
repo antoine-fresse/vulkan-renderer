@@ -110,16 +110,17 @@ void vulkan_renderer::init_device()
 {
 	VkResult err = VK_SUCCESS;
 	uint32_t device_count = 0;
-	vkEnumeratePhysicalDevices(_instance, &device_count, nullptr);
+	err = vkEnumeratePhysicalDevices(_instance, &device_count, nullptr);
 	assert(err == VK_SUCCESS);
 	std::vector<VkPhysicalDevice> physical_devices(device_count);
-	vkEnumeratePhysicalDevices(_instance, &device_count, physical_devices.data());
+	err = vkEnumeratePhysicalDevices(_instance, &device_count, physical_devices.data());
+	assert(err == VK_SUCCESS);
 	_gpu = physical_devices[0];
 
 
 	uint32_t family_count = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(_gpu, &family_count, nullptr);
-	std::vector<VkQueueFamilyProperties> family_properties(device_count);
+	std::vector<VkQueueFamilyProperties> family_properties(family_count);
 	vkGetPhysicalDeviceQueueFamilyProperties(_gpu, &family_count, family_properties.data());
 	
 	auto graphics_queue = std::find_if(family_properties.begin(), family_properties.end(), [](const VkQueueFamilyProperties& family)->bool { return family.queueFlags & VK_QUEUE_GRAPHICS_BIT; });
@@ -128,9 +129,12 @@ void vulkan_renderer::init_device()
 	//if(_debug)
 	{
 		uint32_t layer_count = 0;
-		vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
+		err = vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
+		assert(err == VK_SUCCESS);
+
 		std::vector<VkLayerProperties> layers(layer_count);
-		vkEnumerateInstanceLayerProperties(&layer_count, layers.data());
+		err = vkEnumerateInstanceLayerProperties(&layer_count, layers.data());
+		assert(err == VK_SUCCESS);
 
 		printf("Instance Layers :\n");
 		for (auto layer : layers)
@@ -166,9 +170,11 @@ void vulkan_renderer::init_device()
 	//if (_debug)
 	{
 		uint32_t layer_count = 0;
-		vkEnumerateDeviceLayerProperties(_gpu, &layer_count, nullptr);
+		err = vkEnumerateDeviceLayerProperties(_gpu, &layer_count, nullptr);
+		assert(err == VK_SUCCESS);
 		std::vector<VkLayerProperties> layers(layer_count);
-		vkEnumerateDeviceLayerProperties(_gpu, &layer_count, layers.data());
+		err = vkEnumerateDeviceLayerProperties(_gpu, &layer_count, layers.data());
+		assert(err == VK_SUCCESS);
 
 		printf("Device Layers :\n");
 		for (auto layer : layers)
@@ -193,6 +199,7 @@ void vulkan_renderer::setup_debug()
 	_debug_report_callback_create_info.pfnCallback = debug_report_callback_fn;
 
 	_instance_layers.push_back("VK_LAYER_LUNARG_standard_validation");
+	_instance_layers.push_back("VK_LAYER_RENDERDOC_Capture");
 	
 	// _instance_layers.push_back("VK_LAYER_GOOGLE_threading");
 	// _instance_layers.push_back("VK_LAYER_LUNARG_image");
@@ -205,6 +212,7 @@ void vulkan_renderer::setup_debug()
 	_instance_extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 
 	_device_layers.push_back("VK_LAYER_LUNARG_standard_validation");
+	_device_layers.push_back("VK_LAYER_RENDERDOC_Capture");
 
 	// _device_layers.push_back("VK_LAYER_GOOGLE_threading");
 	// _device_layers.push_back("VK_LAYER_LUNARG_image");

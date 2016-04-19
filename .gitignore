@@ -26,3 +26,8 @@
 *.exe
 *.out
 *.app
+*.tlog
+*.iobj
+*.ipdb
+*.db
+*.idb
