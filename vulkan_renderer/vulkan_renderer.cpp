@@ -1,19 +1,107 @@
 #include "vulkan_renderer.h"
 
-#include <assert.h>
+#include "config_defines.h"
+#include "platform.h"
+
 #include <algorithm>
 #include <sstream>
 #include <iostream>
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#endif
-
 PFN_vkCreateDebugReportCallbackEXT fvkCreateDebugReportCallbackEXT = nullptr;
 PFN_vkDestroyDebugReportCallbackEXT fvkDestroyDebugReportCallbackEXT = nullptr;
 
-VKAPI_ATTR VkBool32 VKAPI_CALL debug_report_callback_fn(
+
+
+vulkan_renderer::vulkan_renderer(const std::vector<const char*>& instance_layers, const std::vector<const char*>& instance_extensions, const std::vector<const char*>& device_layers, const std::vector<const char*>& device_extensions)
+: _debug_report_callback_create_info( vk::DebugReportFlagsEXT{}, nullptr, nullptr)
+{
+	setup_debug();
+
+	_instance_layers.insert(_instance_layers.end(), instance_layers.begin(), instance_layers.end());
+	_instance_extensions.insert(_instance_extensions.end(), instance_extensions.begin(), instance_extensions.end());
+	_device_layers.insert(_device_layers.end(), device_layers.begin(), device_layers.end());
+	_device_extensions.insert(_device_extensions.end(), device_extensions.begin(), device_extensions.end());
+
+	init_instance();
+	
+	init_debug();
+
+	init_device();
+
+	init_command_buffers();
+}
+
+
+vulkan_renderer::~vulkan_renderer()
+{
+	if (_command_pool)
+		_device.destroyCommandPool(_command_pool);
+
+	
+	_device.destroy();
+	
+	uninit_debug();
+	
+	_instance.destroy();
+}
+
+
+
+void vulkan_renderer::init_instance()
+{
+	{
+		printf("Instance Layers :\n");
+		for (auto layer : vk::enumerateInstanceLayerProperties())
+		{
+			printf("%s : %s\n", layer.layerName(), layer.description());
+		}
+	}
+	
+	vk::ApplicationInfo app_info{ "vulkan test", 1, "vulkan test", 1, VK_API_VERSION_1_0 };
+	
+	vk::InstanceCreateInfo ci{ vk::InstanceCreateFlags {} , &app_info, _instance_layers.size(), _instance_layers.data(), _instance_extensions.size(), _instance_extensions.data() };
+	ci.pNext(&_debug_report_callback_create_info);
+	
+	_instance = vk::createInstance(ci);
+}
+
+void vulkan_renderer::init_device()
+{
+	VkResult err = VK_SUCCESS;
+	
+	std::vector<vk::PhysicalDevice> physical_devices = _instance.enumeratePhysicalDevices();
+	_gpu = physical_devices[0];
+	
+	std::vector<vk::QueueFamilyProperties> family_properties = _gpu.getQueueFamilyProperties();
+	
+	auto graphics_queue = std::find_if(family_properties.begin(), family_properties.end(), [](const vk::QueueFamilyProperties& family)->bool { return (family.queueFlags() & vk::QueueFlagBits::eGraphics) == vk::QueueFlagBits::eGraphics; });
+	
+	assert(graphics_queue != family_properties.end());
+
+	_graphics_family_index = distance(family_properties.begin(), graphics_queue);
+
+	float queue_priorities[] = { 1.0f };
+	vk::DeviceQueueCreateInfo device_queue_ci{ vk::DeviceQueueCreateFlags{},  _graphics_family_index , 1, queue_priorities };
+	vk::DeviceCreateInfo device_ci{ vk::DeviceCreateFlags{}, 1, &device_queue_ci, _device_layers.size(), _device_layers.data(), _device_extensions.size(), _device_extensions.data(), nullptr };
+
+	{
+		printf("Device Layers :\n");
+		for (auto layer : _gpu.enumerateDeviceLayerProperties())
+		{
+			printf("%s : %s\n", layer.layerName(), layer.description());
+		}
+	}
+
+	_device = _gpu.createDevice(device_ci);
+
+	_queue = _device.getQueue(_graphics_family_index, 0);
+}
+
+
+#if USE_VULKAN_DEBUG_LAYERS
+
+
+inline VKAPI_ATTR VkBool32 VKAPI_CALL debug_report_callback_fn(
 	VkDebugReportFlagsEXT flags,
 	VkDebugReportObjectTypeEXT obj_type,
 	uint64_t src_obj,
@@ -47,203 +135,68 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debug_report_callback_fn(
 	return false;
 }
 
-vulkan_renderer::vulkan_renderer(bool debug_layers) : _debug(debug_layers)
-{
-	if(_debug)
-		setup_debug();
-
-	init_instance();
-	
-	if (_debug)
-		init_debug();
-
-	init_device();
-
-	init_command_buffers();
-}
-
-
-vulkan_renderer::~vulkan_renderer()
-{
-	if(_command_pool)
-		vkDestroyCommandPool(_device, _command_pool, nullptr);
-
-	vkDestroyDevice(_device, nullptr);
-
-	if (_debug)
-	{
-		fvkDestroyDebugReportCallbackEXT(_instance, _debug_report_callback, nullptr);
-	}
-
-	vkDestroyInstance(_instance, nullptr);
-	
-}
-
-
-
-void vulkan_renderer::init_instance()
-{
-	VkApplicationInfo app_info = {};
-	app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	app_info.pNext = nullptr;
-	app_info.pApplicationName = "vulkan test";
-	app_info.applicationVersion = 1;
-	app_info.pEngineName = "vulkan test";
-	app_info.engineVersion = 1;
-	app_info.apiVersion = VK_API_VERSION_1_0;
-
-	VkInstanceCreateInfo inst_info = {};
-	inst_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	inst_info.pApplicationInfo = &app_info;
-
-	inst_info.enabledLayerCount = _instance_layers.size();
-	inst_info.ppEnabledLayerNames = _instance_layers.size() ? _instance_layers.data() : nullptr;
-	inst_info.enabledExtensionCount = _instance_extensions.size();
-	inst_info.ppEnabledExtensionNames = _instance_extensions.size() ? _instance_extensions.data() : nullptr;
-	inst_info.pNext = &_debug_report_callback_create_info;
-
-	auto res = vkCreateInstance(&inst_info, nullptr, &_instance);
-	assert(res == VK_SUCCESS);
-}
-
-void vulkan_renderer::init_device()
-{
-	VkResult err = VK_SUCCESS;
-	uint32_t device_count = 0;
-	err = vkEnumeratePhysicalDevices(_instance, &device_count, nullptr);
-	assert(err == VK_SUCCESS);
-	std::vector<VkPhysicalDevice> physical_devices(device_count);
-	err = vkEnumeratePhysicalDevices(_instance, &device_count, physical_devices.data());
-	assert(err == VK_SUCCESS);
-	_gpu = physical_devices[0];
-
-
-	uint32_t family_count = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(_gpu, &family_count, nullptr);
-	std::vector<VkQueueFamilyProperties> family_properties(family_count);
-	vkGetPhysicalDeviceQueueFamilyProperties(_gpu, &family_count, family_properties.data());
-	
-	auto graphics_queue = std::find_if(family_properties.begin(), family_properties.end(), [](const VkQueueFamilyProperties& family)->bool { return family.queueFlags & VK_QUEUE_GRAPHICS_BIT; });
-	assert(graphics_queue != family_properties.end());
-
-	//if(_debug)
-	{
-		uint32_t layer_count = 0;
-		err = vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
-		assert(err == VK_SUCCESS);
-
-		std::vector<VkLayerProperties> layers(layer_count);
-		err = vkEnumerateInstanceLayerProperties(&layer_count, layers.data());
-		assert(err == VK_SUCCESS);
-
-		printf("Instance Layers :\n");
-		for (auto layer : layers)
-		{
-			printf("%s : %s\n", layer.layerName, layer.description);
-		}
-	}
-
-	VkDeviceQueueCreateInfo device_queue_create_info = {};
-
-	device_queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	
-	_graphics_family_index = distance(family_properties.begin(), graphics_queue);
-	device_queue_create_info.queueFamilyIndex = _graphics_family_index;
-	device_queue_create_info.queueCount = 1;
-	float queue_priorities[] = { 1.0f };
-	device_queue_create_info.pQueuePriorities = queue_priorities;
-
-	VkDeviceCreateInfo device_create_info = {};
-
-	device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	device_create_info.queueCreateInfoCount = 1;
-	device_create_info.pQueueCreateInfos = &device_queue_create_info;
-
-	device_create_info.enabledLayerCount = _device_layers.size();
-	device_create_info.ppEnabledLayerNames = _device_layers.size() ? _device_layers.data() : nullptr;
-	device_create_info.enabledExtensionCount = _device_extensions.size();
-	device_create_info.ppEnabledExtensionNames = _device_extensions.size() ? _device_extensions.data() : nullptr;
-
-	err = vkCreateDevice(_gpu, &device_create_info, nullptr, &_device);
-	assert(err == VK_SUCCESS);
-
-	//if (_debug)
-	{
-		uint32_t layer_count = 0;
-		err = vkEnumerateDeviceLayerProperties(_gpu, &layer_count, nullptr);
-		assert(err == VK_SUCCESS);
-		std::vector<VkLayerProperties> layers(layer_count);
-		err = vkEnumerateDeviceLayerProperties(_gpu, &layer_count, layers.data());
-		assert(err == VK_SUCCESS);
-
-		printf("Device Layers :\n");
-		for (auto layer : layers)
-		{
-			printf("%s : %s\n", layer.layerName, layer.description);
-		}
-	}
-
-	vkGetDeviceQueue(_device, _graphics_family_index, 0, &_queue);
-}
-
 void vulkan_renderer::setup_debug()
 {
-	_debug_report_callback_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
-	_debug_report_callback_create_info.flags = 
-		// VK_DEBUG_REPORT_INFORMATION_BIT_EXT |
-		VK_DEBUG_REPORT_WARNING_BIT_EXT |
-		VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT |
-		VK_DEBUG_REPORT_ERROR_BIT_EXT |
-		// VK_DEBUG_REPORT_DEBUG_BIT_EXT |
-		0;
-	_debug_report_callback_create_info.pfnCallback = debug_report_callback_fn;
+
+	_debug_report_callback_create_info.flags(
+		//  vk::DebugReportFlagBitsEXT::eInformation |
+		vk::DebugReportFlagBitsEXT::eWarning
+		| vk::DebugReportFlagBitsEXT::ePerformanceWarning
+		| vk::DebugReportFlagBitsEXT::eError
+		//  | vk::DebugReportFlagBitsEXT::eDebug 
+	);
+
+	_debug_report_callback_create_info.pfnCallback(debug_report_callback_fn);
 
 	_instance_layers.push_back("VK_LAYER_LUNARG_standard_validation");
 	_instance_layers.push_back("VK_LAYER_RENDERDOC_Capture");
-	
-	// _instance_layers.push_back("VK_LAYER_GOOGLE_threading");
-	// _instance_layers.push_back("VK_LAYER_LUNARG_image");
-	// _instance_layers.push_back("VK_LAYER_LUNARG_core_validation");
-	// _instance_layers.push_back("VK_LAYER_LUNARG_object_tracker");
-	// _instance_layers.push_back("VK_LAYER_LUNARG_parameter_validation");
-
-
 
 	_instance_extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 
 	_device_layers.push_back("VK_LAYER_LUNARG_standard_validation");
 	_device_layers.push_back("VK_LAYER_RENDERDOC_Capture");
 
-	// _device_layers.push_back("VK_LAYER_GOOGLE_threading");
-	// _device_layers.push_back("VK_LAYER_LUNARG_image");
-	// _device_layers.push_back("VK_LAYER_LUNARG_core_validation");
-	// _device_layers.push_back("VK_LAYER_LUNARG_object_tracker");
-	// _device_layers.push_back("VK_LAYER_LUNARG_parameter_validation");
 }
 
 void vulkan_renderer::init_debug()
 {
-	fvkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(_instance, "vkCreateDebugReportCallbackEXT");
-	fvkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(_instance, "vkDestroyDebugReportCallbackEXT");
-	assert(fvkCreateDebugReportCallbackEXT && fvkDestroyDebugReportCallbackEXT);
+	fvkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr((VkInstance)_instance, "vkCreateDebugReportCallbackEXT");
+	fvkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr((VkInstance)_instance, "vkDestroyDebugReportCallbackEXT");
+	// assert(fvkCreateDebugReportCallbackEXT && fvkDestroyDebugReportCallbackEXT);
 
-	fvkCreateDebugReportCallbackEXT(_instance, &_debug_report_callback_create_info, nullptr, &_debug_report_callback);
+	VkDebugReportCallbackEXT dbg;
+	fvkCreateDebugReportCallbackEXT((VkInstance)_instance, (VkDebugReportCallbackCreateInfoEXT*)&_debug_report_callback_create_info, nullptr, &dbg);
+	_debug_report_callback = dbg;
 }
+
+void vulkan_renderer::uninit_debug()
+{
+	fvkDestroyDebugReportCallbackEXT((VkInstance)_instance, _debug_report_callback, nullptr);
+}
+
+#else
+
+void vulkan_renderer::setup_debug() {}
+void vulkan_renderer::init_debug() {}
+void vulkan_renderer::uninit_debug() {}
+
+#endif
+
 
 void vulkan_renderer::init_command_buffers()
 {
-	VkCommandPoolCreateInfo command_pool_ci = {};
+	/*VkCommandPoolCreateInfo command_pool_ci = {};
 	command_pool_ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	command_pool_ci.queueFamilyIndex = _graphics_family_index;
 	command_pool_ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	
-	vkCreateCommandPool(_device, &command_pool_ci, nullptr, &_command_pool);
+	VkCommandPool cmdpool;
+	vkCreateCommandPool(_device, &command_pool_ci, nullptr, &cmdpool);
 
 	VkCommandBufferAllocateInfo cmd_buffer_alloc_ci = {};
 	cmd_buffer_alloc_ci.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	cmd_buffer_alloc_ci.commandPool = _command_pool;
+	cmd_buffer_alloc_ci.commandPool = cmdpool;
 	cmd_buffer_alloc_ci.commandBufferCount = 1;
 	cmd_buffer_alloc_ci.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
-	vkAllocateCommandBuffers(_device, &cmd_buffer_alloc_ci, &_command_buffer);
+	vkAllocateCommandBuffers(_device, &cmd_buffer_alloc_ci, &_command_buffer);*/
 }
