@@ -30,12 +30,18 @@
     <ClInclude Include="vulkan_include.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="vulkan_window.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="vulkan_renderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vulkan_window.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

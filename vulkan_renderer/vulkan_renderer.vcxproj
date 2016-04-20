@@ -69,20 +69,20 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;D:\dev\libs\glfw\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin32;D:\dev\libs\glfw\build\src\Debug;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;F:\dev\glfw\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin32;F:\dev\glfw\build\src\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;D:\dev\libs\glfw\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin32;D:\dev\libs\glfw\build\src\Release;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;F:\dev\glfw\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin32;F:\dev\glfw\build\src\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;D:\dev\libs\glfw\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin;D:\dev\libs\glfw\build64\src\Debug;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;F:\dev\glfw\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin;F:\dev\glfw\build64\src\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;D:\dev\libs\glfw\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin;D:\dev\libs\glfw\build64\src\Release;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;F:\dev\glfw\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin;F:\dev\glfw\build64\src\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -138,10 +138,12 @@
     <ClInclude Include="vk_cpp.hpp" />
     <ClInclude Include="vulkan_include.h" />
     <ClInclude Include="vulkan_renderer.h" />
+    <ClInclude Include="vulkan_window.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="vulkan_renderer.cpp" />
+    <ClCompile Include="vulkan_window.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

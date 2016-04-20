@@ -15,17 +15,37 @@ PFN_vkDestroyDebugReportCallbackEXT fvkDestroyDebugReportCallbackEXT = nullptr;
 vulkan_renderer::vulkan_renderer(const std::vector<const char*>& instance_layers, const std::vector<const char*>& instance_extensions, const std::vector<const char*>& device_layers, const std::vector<const char*>& device_extensions)
 : _debug_report_callback_create_info( vk::DebugReportFlagsEXT{}, nullptr, nullptr)
 {
+	glfwInit();
+
+	if (GLFW_FALSE == glfwVulkanSupported())
+	{
+		// not supported
+		glfwTerminate();
+		throw std::exception("Cannot initialize GLFW");
+	}
+	
+	// Setup layers & extensions for debugging first
 	setup_debug();
 
+	_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
+	// Extensions required by glfw
+	uint32_t instance_extension_count = 0;
+	const char ** instance_extensions_buffer = glfwGetRequiredInstanceExtensions(&instance_extension_count);
+	for (uint32_t i = 0; i < instance_extension_count; ++i)
+	{
+		// Push back required instance extensions as well
+		_instance_extensions.push_back(instance_extensions_buffer[i]);
+	}
+
+	// Layers & Extensions asked by the user
 	_instance_layers.insert(_instance_layers.end(), instance_layers.begin(), instance_layers.end());
 	_instance_extensions.insert(_instance_extensions.end(), instance_extensions.begin(), instance_extensions.end());
 	_device_layers.insert(_device_layers.end(), device_layers.begin(), device_layers.end());
 	_device_extensions.insert(_device_extensions.end(), device_extensions.begin(), device_extensions.end());
 
 	init_instance();
-	
 	init_debug();
-
 	init_device();
 
 	init_command_buffers();
@@ -34,17 +54,16 @@ vulkan_renderer::vulkan_renderer(const std::vector<const char*>& instance_layers
 
 vulkan_renderer::~vulkan_renderer()
 {
-	if (_command_pool)
-		_device.destroyCommandPool(_command_pool);
+	_window.destroy();
 
-	
+	_device.destroySemaphore(_rendering_finished_semaphore);
+
 	_device.destroy();
 	
 	uninit_debug();
 	
 	_instance.destroy();
 }
-
 
 
 void vulkan_renderer::init_instance()
@@ -59,7 +78,7 @@ void vulkan_renderer::init_instance()
 	
 	vk::ApplicationInfo app_info{ "vulkan test", 1, "vulkan test", 1, VK_API_VERSION_1_0 };
 	
-	vk::InstanceCreateInfo ci{ vk::InstanceCreateFlags {} , &app_info, _instance_layers.size(), _instance_layers.data(), _instance_extensions.size(), _instance_extensions.data() };
+	vk::InstanceCreateInfo ci( vk::InstanceCreateFlags {} , &app_info, _instance_layers.size(), _instance_layers.data(), _instance_extensions.size(), _instance_extensions.data() );
 	ci.pNext(&_debug_report_callback_create_info);
 	
 	_instance = vk::createInstance(ci);
@@ -82,7 +101,7 @@ void vulkan_renderer::init_device()
 
 	float queue_priorities[] = { 1.0f };
 	vk::DeviceQueueCreateInfo device_queue_ci{ vk::DeviceQueueCreateFlags{},  _graphics_family_index , 1, queue_priorities };
-	vk::DeviceCreateInfo device_ci{ vk::DeviceCreateFlags{}, 1, &device_queue_ci, _device_layers.size(), _device_layers.data(), _device_extensions.size(), _device_extensions.data(), nullptr };
+	vk::DeviceCreateInfo device_ci( vk::DeviceCreateFlags{}, 1, &device_queue_ci, _device_layers.size(), _device_layers.data(), _device_extensions.size(), _device_extensions.data(), nullptr );
 
 	{
 		printf("Device Layers :\n");
@@ -99,8 +118,6 @@ void vulkan_renderer::init_device()
 
 
 #if USE_VULKAN_DEBUG_LAYERS
-
-
 inline VKAPI_ATTR VkBool32 VKAPI_CALL debug_report_callback_fn(
 	VkDebugReportFlagsEXT flags,
 	VkDebugReportObjectTypeEXT obj_type,
@@ -149,12 +166,12 @@ void vulkan_renderer::setup_debug()
 	_debug_report_callback_create_info.pfnCallback(debug_report_callback_fn);
 
 	_instance_layers.push_back("VK_LAYER_LUNARG_standard_validation");
-	_instance_layers.push_back("VK_LAYER_RENDERDOC_Capture");
+	// _instance_layers.push_back("VK_LAYER_RENDERDOC_Capture");
 
 	_instance_extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 
 	_device_layers.push_back("VK_LAYER_LUNARG_standard_validation");
-	_device_layers.push_back("VK_LAYER_RENDERDOC_Capture");
+	// _device_layers.push_back("VK_LAYER_RENDERDOC_Capture");
 
 }
 
@@ -199,4 +216,12 @@ void vulkan_renderer::init_command_buffers()
 	cmd_buffer_alloc_ci.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
 	vkAllocateCommandBuffers(_device, &cmd_buffer_alloc_ci, &_command_buffer);*/
+}
+
+void vulkan_renderer::open_window(int width, int height, int buffering)
+{
+	_window.create(this, width, height, buffering);
+
+	vk::SurfaceKHR surface = _window.surface();
+	_rendering_finished_semaphore = _device.createSemaphore({});
 }
