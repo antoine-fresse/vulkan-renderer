@@ -69,19 +69,19 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;..\..\libs\glm\;$(IncludePath)</IncludePath>
     <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin32;..\..\libs\glfw\build\src\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;..\..\libs\glm\;$(IncludePath)</IncludePath>
     <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin32;..\..\libs\glfw\build\src\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;..\..\libs\glm\;$(IncludePath)</IncludePath>
     <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin;..\..\libs\glfw\build64\src\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;..\..\libs\glm\;$(IncludePath)</IncludePath>
     <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin;..\..\libs\glfw\build64\src\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
