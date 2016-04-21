@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <sstream>
 #include <iostream>
+#include <fstream>
 
 PFN_vkCreateDebugReportCallbackEXT fvkCreateDebugReportCallbackEXT = nullptr;
 PFN_vkDestroyDebugReportCallbackEXT fvkDestroyDebugReportCallbackEXT = nullptr;
@@ -56,7 +57,8 @@ vulkan_renderer::~vulkan_renderer()
 {
 	_window.destroy();
 
-	_device.destroySemaphore(_rendering_finished_semaphore);
+	if(_rendering_finished_semaphore)
+		_device.destroySemaphore(_rendering_finished_semaphore);
 
 	_device.destroy();
 	
@@ -101,7 +103,12 @@ void vulkan_renderer::init_device()
 
 	float queue_priorities[] = { 1.0f };
 	vk::DeviceQueueCreateInfo device_queue_ci{ vk::DeviceQueueCreateFlags{},  _graphics_family_index , 1, queue_priorities };
-	vk::DeviceCreateInfo device_ci( vk::DeviceCreateFlags{}, 1, &device_queue_ci, _device_layers.size(), _device_layers.data(), _device_extensions.size(), _device_extensions.data(), nullptr );
+
+
+	auto features = _gpu.getFeatures();
+	features.shaderClipDistance(VK_TRUE);
+
+	vk::DeviceCreateInfo device_ci( vk::DeviceCreateFlags{}, 1, &device_queue_ci, _device_layers.size(), _device_layers.data(), _device_extensions.size(), _device_extensions.data(), &features );
 
 	{
 		printf("Device Layers :\n");
@@ -147,7 +154,10 @@ inline VKAPI_ATTR VkBool32 VKAPI_CALL debug_report_callback_fn(
 
 #ifdef _WIN32
 	if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
+	{
 		MessageBox(nullptr, stream.str().c_str(), "Vulkan Error!", 0);
+		__debugbreak();
+	}
 #endif
 	return false;
 }
@@ -224,4 +234,20 @@ void vulkan_renderer::open_window(int width, int height, int buffering)
 
 	vk::SurfaceKHR surface = _window.surface();
 	_rendering_finished_semaphore = _device.createSemaphore({});
+}
+
+vk::ShaderModule vulkan_renderer::load_shader(const std::string & filename) const
+{
+	std::ifstream vertex_shader_file{ filename, std::ifstream::binary };
+
+	vertex_shader_file.seekg(0, vertex_shader_file.end);
+	int length = vertex_shader_file.tellg();
+	vertex_shader_file.seekg(0, vertex_shader_file.beg);
+
+	std::vector<char> vertex_shader_data(length);
+
+	vertex_shader_file.read(vertex_shader_data.data(), length);
+	auto vertex_shader_module = _device.createShaderModule(vk::ShaderModuleCreateInfo{ {}, (size_t)length, reinterpret_cast<const uint32_t*>(vertex_shader_data.data()) });
+
+	return vertex_shader_module;
 }

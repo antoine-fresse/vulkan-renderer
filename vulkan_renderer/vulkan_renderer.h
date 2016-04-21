@@ -21,6 +21,9 @@ public:
 
 	void						open_window(int width, int height, int buffering=2);
 
+
+	vk::ShaderModule			load_shader(const std::string& filename) const;
+
 private:
 
 	void init_instance();

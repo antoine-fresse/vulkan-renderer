@@ -1,6 +1,7 @@
 #include "vulkan_window.h"
 
 #include "vulkan_renderer.h"
+#include <iostream>
 
 
 vulkan_window::vulkan_window()
@@ -46,14 +47,17 @@ void vulkan_window::create(vulkan_renderer* renderer, uint32_t width, uint32_t h
 
 void vulkan_window::destroy()
 {
-	if (_window)
-	{
-		auto device = _renderer->device();
+	auto device = _renderer->device();
 
-		device.destroyCommandPool(_present_queue_command_pool);
+	if(_swapchain)
+	{
+		destroy_swapchain_resources();
+
 		device.destroySwapchainKHR(_swapchain);
 		device.destroySemaphore(_image_available_semaphore);
-
+	}
+	if (_window)
+	{
 		_renderer->instance().destroySurfaceKHR(_surface);
 		glfwDestroyWindow(_window);
 	}
@@ -125,14 +129,15 @@ void vulkan_window::recreate_swapchain(uint32_t buffering, uint32_t width, uint3
 		swap_chain_extent = surface_capabilities.currentExtent();
 
 
-	vk::ImageUsageFlags usage_flags;
+	vk::ImageUsageFlags usage_flags = vk::ImageUsageFlagBits::eColorAttachment;
 	if (surface_capabilities.supportedUsageFlags() & vk::ImageUsageFlagBits::eTransferDst)
 	{
 		usage_flags |= vk::ImageUsageFlagBits::eTransferDst;
-		usage_flags |= vk::ImageUsageFlagBits::eColorAttachment;
 	}
 	else
-		throw std::exception("Unsupported Transfer Dst");
+	{
+		std::cout << "Warning : TransferDst usage not supported, clear operation might fail" << std::endl;
+	}
 
 	vk::SurfaceTransformFlagBitsKHR transform_flags;
 	if (surface_capabilities.supportedTransforms() & vk::SurfaceTransformFlagBitsKHR::eIdentity)
