@@ -14,20 +14,18 @@ int main()
 	std::vector<const char*> instance_extensions;
 	std::vector<const char*> device_extensions;
 
-	instance_layers.push_back("VK_LAYER_RENDERDOC_Capture");
-	device_layers.push_back("VK_LAYER_RENDERDOC_Capture");
+	//instance_layers.push_back("VK_LAYER_RENDERDOC_Capture");
+	//device_layers.push_back("VK_LAYER_RENDERDOC_Capture");
 	
 	//try
 	{
-		vulkan_renderer renderer{ instance_layers , instance_extensions, device_layers, device_extensions };
+		vulkan_renderer renderer{ 800, 600, 3, instance_layers , instance_extensions, device_layers, device_extensions };
 		auto device = renderer.device();
-		auto& window = renderer.window();
 
-		renderer.open_window(800, 600);
 
-		auto cmd_buffers = window.present_queue_cmd_buffers();
+		auto cmd_buffers = renderer.present_queue_cmd_buffers();
 
-		auto swapchain_images = window.swapchain_images();
+		auto swapchain_images = renderer.swapchain_images();
 
 		vk::ClearColorValue clear_color[] = {   { std::array<float, 4>{1.0f, 0.0f, 1.0f, 0.0f} },
 												{ std::array<float, 4>{1.0f, 0.0f, 1.0f, 0.0f} },
@@ -36,7 +34,7 @@ int main()
 		vk::ImageSubresourceRange img_subresource_range{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 };
 
 
-		vk::AttachmentDescription attachment_descriptions[]{ { {}, window.format(), vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare, vk::ImageLayout::ePresentSrcKHR, vk::ImageLayout::ePresentSrcKHR } };
+		vk::AttachmentDescription attachment_descriptions[]{ { {}, renderer.format(), vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare, vk::ImageLayout::ePresentSrcKHR, vk::ImageLayout::ePresentSrcKHR } };
 		vk::AttachmentReference color_attachment_references[]{ { 0, vk::ImageLayout::eColorAttachmentOptimal } };
 		vk::SubpassDescription subpass_descriptions[]{ { {}, vk::PipelineBindPoint::eGraphics, 0, nullptr, 1, color_attachment_references,nullptr,nullptr,0,nullptr } };
 
@@ -48,7 +46,7 @@ int main()
 		std::vector<vk::Framebuffer> framebuffers(cmd_buffers.size());
 		for (uint32_t i = 0; i < cmd_buffers.size(); ++i)
 		{
-			vk::ImageViewCreateInfo	view_create_info{ {}, swapchain_images[i], vk::ImageViewType::e2D, window.format(), vk::ComponentMapping{}, img_subresource_range };
+			vk::ImageViewCreateInfo	view_create_info{ {}, swapchain_images[i], vk::ImageViewType::e2D, renderer.format(), vk::ComponentMapping{}, img_subresource_range };
 
 			views[i] = device.createImageView(view_create_info);
 
@@ -180,20 +178,23 @@ int main()
 
 		for (uint32_t i = 0; i < cmd_buffers.size(); ++i)
 		{
-
-			vk::ImageMemoryBarrier barrier_present_to_draw{ vk::AccessFlagBits::eMemoryRead, vk::AccessFlagBits::eColorAttachmentWrite, vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, renderer.graphics_family_index(), renderer.graphics_family_index(), swapchain_images[i], img_subresource_range };
-			vk::ImageMemoryBarrier barrier_draw_to_present{ vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eMemoryRead, vk::ImageLayout::ePresentSrcKHR, vk::ImageLayout::ePresentSrcKHR, renderer.graphics_family_index(), renderer.graphics_family_index(), swapchain_images[i], img_subresource_range };
-
-
 			auto& cmd = render_cmd_buffers[i];
 
 			cmd.begin(begin_info);
-
-			
 			cmd.pushConstant(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, mvp);
 			
-			
+			uint32_t src_queue = VK_QUEUE_FAMILY_IGNORED;
+			uint32_t dst_queue = VK_QUEUE_FAMILY_IGNORED;
+
+			if (renderer.graphics_family_index() != renderer.present_family_index())
+			{
+				src_queue = renderer.present_family_index();
+				dst_queue = renderer.graphics_family_index();
+			}
+
+			vk::ImageMemoryBarrier barrier_present_to_draw{ vk::AccessFlagBits::eMemoryRead, vk::AccessFlagBits::eColorAttachmentWrite, vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR, src_queue, dst_queue, swapchain_images[i], img_subresource_range };
 			cmd.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::DependencyFlags{}, 0, nullptr, 0, nullptr, 1, &barrier_present_to_draw);
+
 			
 			vk::ClearValue clear_value{ clear_color[i] };
 			vk::RenderPassBeginInfo render_pass_bi{ render_pass, framebuffers[i], vk::Rect2D{ { 0,0 },{ 800, 600 } }, 1, &clear_value };
@@ -206,6 +207,10 @@ int main()
 
 			cmd.endRenderPass();
 
+
+			std::swap(src_queue, dst_queue);
+			
+			vk::ImageMemoryBarrier barrier_draw_to_present{ vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eMemoryRead, vk::ImageLayout::ePresentSrcKHR, vk::ImageLayout::ePresentSrcKHR, src_queue, dst_queue, swapchain_images[i], img_subresource_range };
 			cmd.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eBottomOfPipe, vk::DependencyFlags{}, 0, nullptr, 0, nullptr, 1, &barrier_draw_to_present);
 
 			cmd.end();
@@ -220,21 +225,19 @@ int main()
 		int timing_index=0;
 		long long timing_sum = 0;
 		auto last_time = std::chrono::high_resolution_clock::now();
-		while (true)
+		while (!glfwWindowShouldClose(renderer.window_handle()))
 		{
-			glfwPollEvents();
-			
 			uint32_t image_index = 0;
-			auto result = device.acquireNextImageKHR(window.swapchain(), UINT64_MAX, window.image_available_semaphore(), VK_NULL_HANDLE, &image_index);
-			if (result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR)
-				window.window_size_changed();
+			auto result = device.acquireNextImageKHR(renderer.swapchain(), UINT64_MAX, renderer.image_available_semaphore(), VK_NULL_HANDLE, &image_index);
+			//if (result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR)
+			//	renderer.window_size_changed();
 
 			vk::PipelineStageFlags pipeline_stage_flags{ vk::PipelineStageFlagBits::eTransfer };
-			vk::SubmitInfo submit_info{ 1, &window.image_available_semaphore(), &pipeline_stage_flags, 1, &render_cmd_buffers[image_index], 1, &renderer.rendering_finished_semaphore() };
+			vk::SubmitInfo submit_info{ 1, &renderer.image_available_semaphore(), &pipeline_stage_flags, 1, &render_cmd_buffers[image_index], 1, &renderer.rendering_finished_semaphore() };
 
-			renderer.queue().submit(submit_info, VK_NULL_HANDLE);
+			renderer.graphics_queue().submit(submit_info, VK_NULL_HANDLE);
 
-			renderer.queue().presentKHR({ 1, &renderer.rendering_finished_semaphore(), 1, &window.swapchain(), &image_index, nullptr });
+			renderer.present_queue().presentKHR({ 1, &renderer.rendering_finished_semaphore(), 1, &renderer.swapchain(), &image_index, nullptr });
 
 			auto current_time = std::chrono::high_resolution_clock::now();
 
@@ -250,7 +253,9 @@ int main()
 
 			char title[256];
 			snprintf(title, 256, "Frame Time %f ms (fps : %f)", timing_sum/10000.0, 10000000.0/timing_sum);
-			glfwSetWindowTitle(window.window_handle(), title);
+			glfwSetWindowTitle(renderer.window_handle(), title);
+
+			glfwPollEvents();
 		}
 	}
 	

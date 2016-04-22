@@ -13,7 +13,7 @@ PFN_vkDestroyDebugReportCallbackEXT fvkDestroyDebugReportCallbackEXT = nullptr;
 
 
 
-vulkan_renderer::vulkan_renderer(const std::vector<const char*>& instance_layers, const std::vector<const char*>& instance_extensions, const std::vector<const char*>& device_layers, const std::vector<const char*>& device_extensions)
+vulkan_renderer::vulkan_renderer(uint32_t width, uint32_t height, uint32_t buffering, const std::vector<const char*>& instance_layers, const std::vector<const char*>& instance_extensions, const std::vector<const char*>& device_layers, const std::vector<const char*>& device_extensions)
 : _debug_report_callback_create_info( vk::DebugReportFlagsEXT{}, nullptr, nullptr)
 {
 	glfwInit();
@@ -47,7 +47,12 @@ vulkan_renderer::vulkan_renderer(const std::vector<const char*>& instance_layers
 
 	init_instance();
 	init_debug();
+
+	create_window_and_surface(width, height, buffering);
+
 	init_device();
+
+	recreate_swapchain(buffering, _width, _height);
 
 	init_command_buffers();
 }
@@ -55,11 +60,10 @@ vulkan_renderer::vulkan_renderer(const std::vector<const char*>& instance_layers
 
 vulkan_renderer::~vulkan_renderer()
 {
-	_window.destroy();
+	_device.waitIdle();
 
-	if(_rendering_finished_semaphore)
-		_device.destroySemaphore(_rendering_finished_semaphore);
-
+	_device.destroySemaphore(_rendering_finished_semaphore);
+	_device.destroySemaphore(_image_available_semaphore);
 	_device.destroy();
 	
 	uninit_debug();
@@ -93,22 +97,20 @@ void vulkan_renderer::init_device()
 	std::vector<vk::PhysicalDevice> physical_devices = _instance.enumeratePhysicalDevices();
 	_gpu = physical_devices[0];
 	
-	std::vector<vk::QueueFamilyProperties> family_properties = _gpu.getQueueFamilyProperties();
-	
-	auto graphics_queue = std::find_if(family_properties.begin(), family_properties.end(), [](const vk::QueueFamilyProperties& family)->bool { return (family.queueFlags() & vk::QueueFlagBits::eGraphics) == vk::QueueFlagBits::eGraphics; });
-	
-	assert(graphics_queue != family_properties.end());
-
-	_graphics_family_index = distance(family_properties.begin(), graphics_queue);
+	std::tie(_graphics_family_index, _present_family_index) = retrieve_queues_family_index();
 
 	float queue_priorities[] = { 1.0f };
-	vk::DeviceQueueCreateInfo device_queue_ci{ vk::DeviceQueueCreateFlags{},  _graphics_family_index , 1, queue_priorities };
 
+	std::vector<vk::DeviceQueueCreateInfo> queues_ci;
+
+	queues_ci.emplace_back(vk::DeviceQueueCreateFlags{}, _graphics_family_index, 1, queue_priorities);
+	if(_graphics_family_index != _present_family_index)
+		queues_ci.emplace_back(vk::DeviceQueueCreateFlags{}, _present_family_index, 1, queue_priorities);
 
 	auto features = _gpu.getFeatures();
 	features.shaderClipDistance(VK_TRUE);
 
-	vk::DeviceCreateInfo device_ci( vk::DeviceCreateFlags{}, 1, &device_queue_ci, _device_layers.size(), _device_layers.data(), _device_extensions.size(), _device_extensions.data(), &features );
+	vk::DeviceCreateInfo device_ci( vk::DeviceCreateFlags{}, queues_ci.size(), queues_ci.data(), _device_layers.size(), _device_layers.data(), _device_extensions.size(), _device_extensions.data(), &features );
 
 	{
 		printf("Device Layers :\n");
@@ -120,7 +122,12 @@ void vulkan_renderer::init_device()
 
 	_device = _gpu.createDevice(device_ci);
 
-	_queue = _device.getQueue(_graphics_family_index, 0);
+	_graphics_queue = _device.getQueue(_graphics_family_index, 0);
+	_present_queue = _device.getQueue(_present_family_index, 0);
+
+	_rendering_finished_semaphore = _device.createSemaphore({});
+	_image_available_semaphore = _device.createSemaphore({});
+
 }
 
 
@@ -228,12 +235,66 @@ void vulkan_renderer::init_command_buffers()
 	vkAllocateCommandBuffers(_device, &cmd_buffer_alloc_ci, &_command_buffer);*/
 }
 
-void vulkan_renderer::open_window(int width, int height, int buffering)
+std::pair<uint32_t, uint32_t> vulkan_renderer::retrieve_queues_family_index()
 {
-	_window.create(this, width, height, buffering);
+	std::pair<uint32_t, uint32_t> result(UINT32_MAX, UINT32_MAX);
+	
+	auto family_properties = _gpu.getQueueFamilyProperties();
 
-	vk::SurfaceKHR surface = _window.surface();
-	_rendering_finished_semaphore = _device.createSemaphore({});
+	for(uint32_t i = 0; i<family_properties.size(); ++i)
+	{
+		auto surface_support_khr = _gpu.getSurfaceSupportKHR(i, _surface);
+
+		if(family_properties[i].queueCount() > 0 && bool(family_properties[i].queueFlags() & vk::QueueFlagBits::eGraphics))
+		{
+			if (result.first == UINT32_MAX)
+				result.first = i;
+
+
+			if(surface_support_khr)
+			{
+				result.first = i;
+				result.second = i;
+				return result;
+			}
+		}
+
+		if (surface_support_khr && result.second == UINT32_MAX)
+			result.second = i;
+	}
+	
+	return result;
+}
+
+void vulkan_renderer::create_window_and_surface(uint32_t width, uint32_t height, uint32_t buffering)
+{
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // This tells GLFW to not create an OpenGL context with the window
+	GLFWwindow * window = glfwCreateWindow(width, height, "vulkan_test", nullptr, nullptr);
+	if (!window)
+	{
+		throw std::exception("Cannot create window");
+	}
+
+	// make sure we indeed get the surface size we want.
+	int width_fb = 0, height_fb = 0;
+	glfwGetFramebufferSize(window, &width_fb, &height_fb);
+
+	_width = width_fb;
+	_height = height_fb;
+
+	VkSurfaceKHR surface = VK_NULL_HANDLE;
+	VkResult ret = glfwCreateWindowSurface(_instance, window, nullptr, &surface);
+	if (VK_SUCCESS != ret)
+	{
+		glfwDestroyWindow(window);
+		throw std::exception("Cannot create window surface KHR");
+	}
+
+	_window = window;
+	_surface = surface;
+
+	//recreate_swapchain(buffering, _width, _height);
+	
 }
 
 vk::ShaderModule vulkan_renderer::load_shader(const std::string & filename) const
@@ -250,4 +311,122 @@ vk::ShaderModule vulkan_renderer::load_shader(const std::string & filename) cons
 	auto vertex_shader_module = _device.createShaderModule(vk::ShaderModuleCreateInfo{ {}, (size_t)length, reinterpret_cast<const uint32_t*>(vertex_shader_data.data()) });
 
 	return vertex_shader_module;
+}
+
+
+
+void vulkan_renderer::destroy_swapchain_resources()
+{
+	if (_swapchain)
+	{
+		
+		_device.waitIdle();
+
+		if (_present_queue_cmd_buffers.size())
+			_device.freeCommandBuffers(_present_queue_command_pool, _present_queue_cmd_buffers.size(), _present_queue_cmd_buffers.data());
+
+		_present_queue_cmd_buffers.clear();
+
+		_device.destroyCommandPool(_present_queue_command_pool);
+		_present_queue_command_pool = VK_NULL_HANDLE;
+	}
+}
+
+void vulkan_renderer::recreate_swapchain(uint32_t buffering, uint32_t width, uint32_t height)
+{
+	destroy_swapchain_resources();
+
+	vk::SurfaceCapabilitiesKHR surface_capabilities;
+	_gpu.getSurfaceCapabilitiesKHR(_surface, surface_capabilities);
+
+	auto surface_formats = _gpu.getSurfaceFormatsKHR(_surface);
+	auto surface_present_modes = _gpu.getSurfacePresentModesKHR(_surface);
+
+	int image_count = buffering;
+	if (image_count < surface_capabilities.minImageCount() || image_count > surface_capabilities.maxImageCount())
+		throw std::exception("Unsupported Buffering");
+
+	vk::SurfaceFormatKHR format{ vk::Format::eR8G8B8A8Unorm, vk::ColorSpaceKHR::eVkColorspaceSrgbNonlinear };
+	if (surface_formats.size() == 1 && surface_formats[0].format() == vk::Format::eUndefined)
+		format = { vk::Format::eR8G8B8A8Unorm, vk::ColorSpaceKHR::eVkColorspaceSrgbNonlinear };
+	else
+	{
+		auto found = std::find_if(surface_formats.begin(), surface_formats.end(), [](vk::SurfaceFormatKHR f)
+		{
+			return f.format() == vk::Format::eR8G8B8A8Unorm;
+		});
+
+		if (found == surface_formats.end())
+			format = surface_formats[0];
+		else
+			format = *found;
+	}
+	vk::Extent2D swap_chain_extent{ width, height };
+	if (surface_capabilities.currentExtent().width() == -1)
+	{
+		if (swap_chain_extent.width() < surface_capabilities.minImageExtent().width())
+			swap_chain_extent.width(surface_capabilities.minImageExtent().width());
+		if (swap_chain_extent.height() < surface_capabilities.minImageExtent().height())
+			swap_chain_extent.height(surface_capabilities.minImageExtent().height());
+
+		if (swap_chain_extent.width() > surface_capabilities.maxImageExtent().width())
+			swap_chain_extent.width(surface_capabilities.maxImageExtent().width());
+		if (swap_chain_extent.height() > surface_capabilities.maxImageExtent().height())
+			swap_chain_extent.height(surface_capabilities.maxImageExtent().height());
+	}
+	else
+		swap_chain_extent = surface_capabilities.currentExtent();
+
+
+	vk::ImageUsageFlags usage_flags = vk::ImageUsageFlagBits::eColorAttachment;
+	auto supported_usage = surface_capabilities.supportedUsageFlags();
+	if (supported_usage & vk::ImageUsageFlagBits::eTransferDst)
+	{
+		usage_flags |= vk::ImageUsageFlagBits::eTransferDst;
+	}
+	else
+	{
+		std::cout << "Warning : TransferDst usage not supported, clear operation might fail" << std::endl;
+	}
+
+	vk::SurfaceTransformFlagBitsKHR transform_flags;
+	if (surface_capabilities.supportedTransforms() & vk::SurfaceTransformFlagBitsKHR::eIdentity)
+		transform_flags = vk::SurfaceTransformFlagBitsKHR::eIdentity;
+	else
+		transform_flags = surface_capabilities.currentTransform();
+
+
+	auto present_mode = std::find_if(surface_present_modes.begin(), surface_present_modes.end(), [](vk::PresentModeKHR pmode) { return pmode == vk::PresentModeKHR::eMailbox; });
+	if (present_mode == surface_present_modes.end())
+		present_mode = std::find_if(surface_present_modes.begin(), surface_present_modes.end(), [](vk::PresentModeKHR pmode) { return pmode == vk::PresentModeKHR::eFifo; });
+	if (present_mode == surface_present_modes.end())
+		throw std::exception("Unsupported present mode");
+
+	if (!_gpu.getSurfaceSupportKHR(_present_family_index, _surface))
+	{
+		throw std::exception("Unsupported present mode");
+	}
+
+	vk::SwapchainKHR old_swapchain_khr = _swapchain;
+	vk::SwapchainCreateInfoKHR swapchain_ci(vk::SwapchainCreateFlagsKHR{}, _surface, image_count, format.format(), format.colorSpace(), swap_chain_extent, 1, vk::ImageUsageFlagBits::eColorAttachment, vk::SharingMode::eExclusive, 0, nullptr, transform_flags, vk::CompositeAlphaFlagBitsKHR::eOpaque, *present_mode, VK_TRUE, old_swapchain_khr);
+	
+	if (old_swapchain_khr)
+	{
+		_device.destroySwapchainKHR(old_swapchain_khr);
+	}
+
+	_swapchain = _device.createSwapchainKHR(swapchain_ci);
+
+	// Get real image count
+	_device.getSwapchainImagesKHR(_swapchain, &_image_count, nullptr);
+
+	_present_queue_command_pool = _device.createCommandPool(vk::CommandPoolCreateInfo{ {}, _graphics_family_index });
+
+	vk::CommandBufferAllocateInfo cmd_alloc_info{ _present_queue_command_pool, vk::CommandBufferLevel::ePrimary, _image_count };
+
+	_present_queue_cmd_buffers = _device.allocateCommandBuffers(cmd_alloc_info);
+
+	_swapchain_images = _device.getSwapchainImagesKHR(_swapchain);
+
+	_swapchain_format = format.format();
 }
