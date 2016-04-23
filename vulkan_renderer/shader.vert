@@ -3,16 +3,22 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 
-layout(push_constant) uniform push_block 
+layout(location = 0) in vec3 position;
+layout(location = 1) in vec3 normal;
+layout(location = 2) in vec3 tangent;
+layout(location = 3) in vec2 uv;
+
+layout(binding = 0) uniform UBO
 {
 	mat4 mvp;
-} constants;
+} ubo;
 
-// layout(location = 0) in vec4 pos;
+layout (location = 0) out vec2 outUV;
+layout (location = 1) out vec3 outNormal;
 
 void main() 
 {
-	vec2 pos[3] = vec2[3]( vec2(-2, 2), vec2(0.0, -2), vec2(2, 2) );
-
-	gl_Position = constants.mvp * vec4(pos[gl_VertexIndex], 0.0, 1.0);
+	outUV = uv;
+	outNormal = normal;
+	gl_Position = ubo.mvp * vec4(position, 1.0);
 }

@@ -1,6 +1,5 @@
 #pragma once
 #include "vulkan_include.h"
-#include "vulkan_window.h"
 
 #include <vector>
 
@@ -10,25 +9,31 @@ public:
 	vulkan_renderer(uint32_t width, uint32_t height, uint32_t buffering, const std::vector<const char*>& instance_layers, const std::vector<const char*>& instance_extensions, const std::vector<const char*>& device_layers, const std::vector<const char*>& device_extensions);
 	~vulkan_renderer();
 
-	const vk::Instance&						instance()						const { return _instance; }
-	const vk::PhysicalDevice&				gpu()							const { return _gpu; }
-	const vk::Device&						device()						const { return _device; }
-	const vk::Queue&						graphics_queue()				const { return _graphics_queue; }
-	const vk::Queue&						present_queue()					const { return _present_queue; }
-	uint32_t								graphics_family_index()			const { return _graphics_family_index; }
-	uint32_t								present_family_index()			const { return _present_family_index; }
-	const vk::Semaphore&					rendering_finished_semaphore()	const { return _rendering_finished_semaphore; }
-	const vk::SurfaceKHR&					surface()						const { return _surface; }
-	const vk::Semaphore&					image_available_semaphore()		const { return _image_available_semaphore; }
-	const vk::SwapchainKHR&					swapchain()						const { return _swapchain; }
-	const std::vector<vk::Image>&			swapchain_images()				const { return _swapchain_images; }
-	const std::vector<vk::CommandBuffer>&	present_queue_cmd_buffers()		const { return _present_queue_cmd_buffers; };
-	const vk::Format&						format()						const { return _swapchain_format; }
-	GLFWwindow*								window_handle()					const { return _window; }
-	uint32_t								width() 						const { return _width; }
-	uint32_t								height()						const { return _height; }
+	const auto&								instance()						const { return _instance; }
+	const auto&								gpu()							const { return _gpu; }
+	const auto&								device()						const { return _device; }
+	const auto&								graphics_queue()				const { return _graphics_queue; }
+	const auto&								present_queue()					const { return _present_queue; }
+	auto									graphics_family_index()			const { return _graphics_family_index; }
+	auto									present_family_index()			const { return _present_family_index; }
+	const auto&								rendering_finished_semaphore()	const { return _rendering_finished_semaphore; }
+	const auto&								surface()						const { return _surface; }
+	const auto&								image_available_semaphore()		const { return _image_available_semaphore; }
+	const auto&								swapchain()						const { return _swapchain; }
+	const auto&								swapchain_images()				const { return _swapchain_images; }
+	const auto&								format()						const { return _swapchain_format; }
+	const auto&								gpu_properties()				const { return _gpu_properties; }
+	auto*									window_handle()					const { return _window; }
+	auto									width() 						const { return _width; }
+	auto									height()						const { return _height; }
+	bool									ready()							const { return _ready;	}
+	const auto&								render_command_buffers()		const { return _render_command_buffers;	}
 
-	vk::ShaderModule			load_shader(const std::string& filename) const;
+	vk::ShaderModule						load_shader(const std::string& filename) const;
+	uint32_t								find_adequate_memory(vk::MemoryRequirements mem_reqs, vk::MemoryPropertyFlagBits requirements_mask) const;
+
+	void									render(vk::Fence fence = {});
+	void									present() const;
 
 private:
 
@@ -40,14 +45,17 @@ private:
 	void init_debug();
 	void uninit_debug();
 
-	void init_command_buffers();
+	void init_render_command_buffers();
 
 	void create_window_and_surface(uint32_t width, uint32_t height, uint32_t buffering);
 	void recreate_swapchain(uint32_t buffering, uint32_t width, uint32_t height);
-	void destroy_swapchain_resources();
 
 	std::pair<uint32_t, uint32_t>	retrieve_queues_family_index();
 
+	
+
+
+	bool									_ready = false;
 	vk::Instance							_instance;
 	vk::PhysicalDevice						_gpu;
 	vk::Device								_device;
@@ -56,6 +64,8 @@ private:
 	uint32_t								_graphics_family_index = 0;
 	uint32_t								_present_family_index = 0;
 	
+	vk::PhysicalDeviceMemoryProperties		_memory_properties;
+	vk::PhysicalDeviceProperties			_gpu_properties;
 
 	vk::DebugReportCallbackEXT				_debug_report_callback;
 	vk::DebugReportCallbackCreateInfoEXT	_debug_report_callback_create_info;
@@ -77,10 +87,11 @@ private:
 	std::vector<vk::Image>					_swapchain_images;
 	vk::Semaphore							_image_available_semaphore;
 
-	uint32_t								_image_count = 0;
-	vk::CommandPool							_present_queue_command_pool;
-	std::vector<vk::CommandBuffer>			_present_queue_cmd_buffers;
 	vk::Format								_swapchain_format;
 
+	vk::CommandPool							_render_command_pool;
+	std::vector<vk::CommandBuffer>			_render_command_buffers;
+
+	uint32_t								_current_image_index;
 	
 };

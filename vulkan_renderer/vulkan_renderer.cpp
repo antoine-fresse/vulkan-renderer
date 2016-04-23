@@ -3,6 +3,8 @@
 #include "config_defines.h"
 #include "platform.h"
 
+#include "shared.h"
+
 #include <algorithm>
 #include <sstream>
 #include <iostream>
@@ -17,12 +19,11 @@ vulkan_renderer::vulkan_renderer(uint32_t width, uint32_t height, uint32_t buffe
 : _debug_report_callback_create_info( vk::DebugReportFlagsEXT{}, nullptr, nullptr)
 {
 	glfwInit();
-
 	if (GLFW_FALSE == glfwVulkanSupported())
 	{
 		// not supported
 		glfwTerminate();
-		throw std::exception("Cannot initialize GLFW");
+		throw std::system_error(vk::Result::eErrorInitializationFailed, "Cannot initialize GLFW, vulkan is not supported");
 	}
 	
 	// Setup layers & extensions for debugging first
@@ -54,13 +55,20 @@ vulkan_renderer::vulkan_renderer(uint32_t width, uint32_t height, uint32_t buffe
 
 	recreate_swapchain(buffering, _width, _height);
 
-	init_command_buffers();
+	init_render_command_buffers();
+	_ready = true;
 }
-
 
 vulkan_renderer::~vulkan_renderer()
 {
 	_device.waitIdle();
+
+	_device.destroyCommandPool(_render_command_pool);
+
+	_device.destroySwapchainKHR(_swapchain);
+
+	_instance.destroySurfaceKHR(_surface);
+	glfwDestroyWindow(_window);
 
 	_device.destroySemaphore(_rendering_finished_semaphore);
 	_device.destroySemaphore(_image_available_semaphore);
@@ -70,7 +78,6 @@ vulkan_renderer::~vulkan_renderer()
 	
 	_instance.destroy();
 }
-
 
 void vulkan_renderer::init_instance()
 {
@@ -96,6 +103,9 @@ void vulkan_renderer::init_device()
 	
 	std::vector<vk::PhysicalDevice> physical_devices = _instance.enumeratePhysicalDevices();
 	_gpu = physical_devices[0];
+
+	_memory_properties = _gpu.getMemoryProperties();
+	_gpu_properties = _gpu.getProperties();
 	
 	std::tie(_graphics_family_index, _present_family_index) = retrieve_queues_family_index();
 
@@ -217,22 +227,21 @@ void vulkan_renderer::uninit_debug() {}
 #endif
 
 
-void vulkan_renderer::init_command_buffers()
+void vulkan_renderer::init_render_command_buffers()
 {
-	/*VkCommandPoolCreateInfo command_pool_ci = {};
+	VkCommandPoolCreateInfo command_pool_ci = {};
 	command_pool_ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	command_pool_ci.queueFamilyIndex = _graphics_family_index;
 	command_pool_ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	VkCommandPool cmdpool;
-	vkCreateCommandPool(_device, &command_pool_ci, nullptr, &cmdpool);
+	_render_command_pool = _device.createCommandPool(command_pool_ci);
 
 	VkCommandBufferAllocateInfo cmd_buffer_alloc_ci = {};
 	cmd_buffer_alloc_ci.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	cmd_buffer_alloc_ci.commandPool = cmdpool;
-	cmd_buffer_alloc_ci.commandBufferCount = 1;
+	cmd_buffer_alloc_ci.commandPool = _render_command_pool;
+	cmd_buffer_alloc_ci.commandBufferCount = _swapchain_images.size();
 	cmd_buffer_alloc_ci.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
-	vkAllocateCommandBuffers(_device, &cmd_buffer_alloc_ci, &_command_buffer);*/
+	_render_command_buffers = _device.allocateCommandBuffers(cmd_buffer_alloc_ci);
 }
 
 std::pair<uint32_t, uint32_t> vulkan_renderer::retrieve_queues_family_index()
@@ -266,13 +275,30 @@ std::pair<uint32_t, uint32_t> vulkan_renderer::retrieve_queues_family_index()
 	return result;
 }
 
+uint32_t vulkan_renderer::find_adequate_memory(vk::MemoryRequirements mem_reqs, vk::MemoryPropertyFlagBits requirements_mask) const
+{
+	auto bits = mem_reqs.memoryTypeBits();
+
+	for (uint32_t i = 0; i < 32; ++i)
+	{
+		if ((bits & 1) == 1)
+		{
+			if ((_memory_properties.memoryTypes()[i].propertyFlags() & requirements_mask) == requirements_mask)
+			{
+				return i;
+			}
+		}
+	}
+	throw renderer_exception("Cannot find suitable memory for the specified requirements");
+}
+
 void vulkan_renderer::create_window_and_surface(uint32_t width, uint32_t height, uint32_t buffering)
 {
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // This tells GLFW to not create an OpenGL context with the window
 	GLFWwindow * window = glfwCreateWindow(width, height, "vulkan_test", nullptr, nullptr);
 	if (!window)
 	{
-		throw std::exception("Cannot create window");
+		throw std::system_error(vk::Result::eErrorInitializationFailed, "Cannot GLFW create window");
 	}
 
 	// make sure we indeed get the surface size we want.
@@ -287,14 +313,11 @@ void vulkan_renderer::create_window_and_surface(uint32_t width, uint32_t height,
 	if (VK_SUCCESS != ret)
 	{
 		glfwDestroyWindow(window);
-		throw std::exception("Cannot create window surface KHR");
+		throw std::system_error(vk::Result::eErrorInitializationFailed, "Cannot create window surface KHR");
 	}
 
 	_window = window;
 	_surface = surface;
-
-	//recreate_swapchain(buffering, _width, _height);
-	
 }
 
 vk::ShaderModule vulkan_renderer::load_shader(const std::string & filename) const
@@ -313,29 +336,8 @@ vk::ShaderModule vulkan_renderer::load_shader(const std::string & filename) cons
 	return vertex_shader_module;
 }
 
-
-
-void vulkan_renderer::destroy_swapchain_resources()
-{
-	if (_swapchain)
-	{
-		
-		_device.waitIdle();
-
-		if (_present_queue_cmd_buffers.size())
-			_device.freeCommandBuffers(_present_queue_command_pool, _present_queue_cmd_buffers.size(), _present_queue_cmd_buffers.data());
-
-		_present_queue_cmd_buffers.clear();
-
-		_device.destroyCommandPool(_present_queue_command_pool);
-		_present_queue_command_pool = VK_NULL_HANDLE;
-	}
-}
-
 void vulkan_renderer::recreate_swapchain(uint32_t buffering, uint32_t width, uint32_t height)
 {
-	destroy_swapchain_resources();
-
 	vk::SurfaceCapabilitiesKHR surface_capabilities;
 	_gpu.getSurfaceCapabilitiesKHR(_surface, surface_capabilities);
 
@@ -344,7 +346,7 @@ void vulkan_renderer::recreate_swapchain(uint32_t buffering, uint32_t width, uin
 
 	int image_count = buffering;
 	if (image_count < surface_capabilities.minImageCount() || image_count > surface_capabilities.maxImageCount())
-		throw std::exception("Unsupported Buffering");
+		throw std::system_error(vk::Result::eErrorFeatureNotPresent, "Unsupported Buffering");
 
 	vk::SurfaceFormatKHR format{ vk::Format::eR8G8B8A8Unorm, vk::ColorSpaceKHR::eVkColorspaceSrgbNonlinear };
 	if (surface_formats.size() == 1 && surface_formats[0].format() == vk::Format::eUndefined)
@@ -386,7 +388,7 @@ void vulkan_renderer::recreate_swapchain(uint32_t buffering, uint32_t width, uin
 	}
 	else
 	{
-		std::cout << "Warning : TransferDst usage not supported, clear operation might fail" << std::endl;
+		std::cout << "Warning : TransferDst usage not supported" << std::endl;
 	}
 
 	vk::SurfaceTransformFlagBitsKHR transform_flags;
@@ -400,15 +402,15 @@ void vulkan_renderer::recreate_swapchain(uint32_t buffering, uint32_t width, uin
 	if (present_mode == surface_present_modes.end())
 		present_mode = std::find_if(surface_present_modes.begin(), surface_present_modes.end(), [](vk::PresentModeKHR pmode) { return pmode == vk::PresentModeKHR::eFifo; });
 	if (present_mode == surface_present_modes.end())
-		throw std::exception("Unsupported present mode");
+		throw std::system_error(vk::Result::eErrorFeatureNotPresent, "Unsupported present mode");
 
 	if (!_gpu.getSurfaceSupportKHR(_present_family_index, _surface))
 	{
-		throw std::exception("Unsupported present mode");
+		throw std::system_error(vk::Result::eErrorFeatureNotPresent, "Unsupported present mode");
 	}
 
 	vk::SwapchainKHR old_swapchain_khr = _swapchain;
-	vk::SwapchainCreateInfoKHR swapchain_ci(vk::SwapchainCreateFlagsKHR{}, _surface, image_count, format.format(), format.colorSpace(), swap_chain_extent, 1, vk::ImageUsageFlagBits::eColorAttachment, vk::SharingMode::eExclusive, 0, nullptr, transform_flags, vk::CompositeAlphaFlagBitsKHR::eOpaque, *present_mode, VK_TRUE, old_swapchain_khr);
+	vk::SwapchainCreateInfoKHR swapchain_ci(vk::SwapchainCreateFlagsKHR{}, _surface, image_count, format.format(), format.colorSpace(), swap_chain_extent, 1, usage_flags, vk::SharingMode::eExclusive, 0, nullptr, transform_flags, vk::CompositeAlphaFlagBitsKHR::eOpaque, *present_mode, VK_TRUE, old_swapchain_khr);
 	
 	if (old_swapchain_khr)
 	{
@@ -416,17 +418,23 @@ void vulkan_renderer::recreate_swapchain(uint32_t buffering, uint32_t width, uin
 	}
 
 	_swapchain = _device.createSwapchainKHR(swapchain_ci);
-
-	// Get real image count
-	_device.getSwapchainImagesKHR(_swapchain, &_image_count, nullptr);
-
-	_present_queue_command_pool = _device.createCommandPool(vk::CommandPoolCreateInfo{ {}, _graphics_family_index });
-
-	vk::CommandBufferAllocateInfo cmd_alloc_info{ _present_queue_command_pool, vk::CommandBufferLevel::ePrimary, _image_count };
-
-	_present_queue_cmd_buffers = _device.allocateCommandBuffers(cmd_alloc_info);
-
 	_swapchain_images = _device.getSwapchainImagesKHR(_swapchain);
-
 	_swapchain_format = format.format();
+}
+
+void vulkan_renderer::render(vk::Fence fence)
+{
+	auto result = _device.acquireNextImageKHR(_swapchain, UINT64_MAX, _image_available_semaphore, VK_NULL_HANDLE, &_current_image_index);
+	//if (result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR)
+	//	renderer.window_size_changed();
+
+	vk::PipelineStageFlags pipeline_stage_flags{ vk::PipelineStageFlagBits::eTransfer };
+	vk::SubmitInfo submit_info{ 1, &_image_available_semaphore, &pipeline_stage_flags, 1, &_render_command_buffers[_current_image_index], 1, &_rendering_finished_semaphore };
+
+	_graphics_queue.submit(submit_info, fence);
+}
+
+void vulkan_renderer::present() const
+{
+	_present_queue.presentKHR(vk::PresentInfoKHR{ 1, &_rendering_finished_semaphore, 1, &_swapchain, &_current_image_index, nullptr});
 }

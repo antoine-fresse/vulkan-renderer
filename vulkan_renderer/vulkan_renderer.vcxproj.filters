@@ -30,7 +30,13 @@
     <ClInclude Include="vulkan_include.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="vulkan_window.h">
+    <ClInclude Include="mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shared.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="math_include.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -41,7 +47,7 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="vulkan_window.cpp">
+    <ClCompile Include="mesh.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
