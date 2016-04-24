@@ -1,13 +1,15 @@
 #pragma once
 #include "vulkan_include.h"
 
+#include "texture_manager.h"
+
 #include <vector>
 
-class vulkan_renderer
+class renderer
 {
 public:
-	vulkan_renderer(uint32_t width, uint32_t height, uint32_t buffering, const std::vector<const char*>& instance_layers, const std::vector<const char*>& instance_extensions, const std::vector<const char*>& device_layers, const std::vector<const char*>& device_extensions);
-	~vulkan_renderer();
+	renderer(uint32_t width, uint32_t height, uint32_t buffering, const std::vector<const char*>& instance_layers, const std::vector<const char*>& instance_extensions, const std::vector<const char*>& device_layers, const std::vector<const char*>& device_extensions);
+	~renderer();
 
 	const auto&								instance()						const { return _instance; }
 	const auto&								gpu()							const { return _gpu; }
@@ -28,12 +30,15 @@ public:
 	auto									height()						const { return _height; }
 	bool									ready()							const { return _ready;	}
 	const auto&								render_command_buffers()		const { return _render_command_buffers;	}
-
+	
+	auto&									tex_manager() { return _texture_manager; }
 	vk::ShaderModule						load_shader(const std::string& filename) const;
 	uint32_t								find_adequate_memory(vk::MemoryRequirements mem_reqs, vk::MemoryPropertyFlagBits requirements_mask) const;
 
 	void									render(vk::Fence fence = {});
 	void									present() const;
+
+	vk::DeviceSize							ubo_aligned_size(vk::DeviceSize size) const;
 
 private:
 
@@ -94,4 +99,6 @@ private:
 
 	uint32_t								_current_image_index;
 	
+	texture_manager							_texture_manager;
+
 };

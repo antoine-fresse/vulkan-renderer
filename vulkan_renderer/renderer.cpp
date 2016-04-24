@@ -1,4 +1,4 @@
-#include "vulkan_renderer.h"
+#include "renderer.h"
 
 #include "config_defines.h"
 #include "platform.h"
@@ -15,8 +15,9 @@ PFN_vkDestroyDebugReportCallbackEXT fvkDestroyDebugReportCallbackEXT = nullptr;
 
 
 
-vulkan_renderer::vulkan_renderer(uint32_t width, uint32_t height, uint32_t buffering, const std::vector<const char*>& instance_layers, const std::vector<const char*>& instance_extensions, const std::vector<const char*>& device_layers, const std::vector<const char*>& device_extensions)
+renderer::renderer(uint32_t width, uint32_t height, uint32_t buffering, const std::vector<const char*>& instance_layers, const std::vector<const char*>& instance_extensions, const std::vector<const char*>& device_layers, const std::vector<const char*>& device_extensions)
 : _debug_report_callback_create_info( vk::DebugReportFlagsEXT{}, nullptr, nullptr)
+, _texture_manager(*this)
 {
 	glfwInit();
 	if (GLFW_FALSE == glfwVulkanSupported())
@@ -59,7 +60,7 @@ vulkan_renderer::vulkan_renderer(uint32_t width, uint32_t height, uint32_t buffe
 	_ready = true;
 }
 
-vulkan_renderer::~vulkan_renderer()
+renderer::~renderer()
 {
 	_device.waitIdle();
 
@@ -79,7 +80,7 @@ vulkan_renderer::~vulkan_renderer()
 	_instance.destroy();
 }
 
-void vulkan_renderer::init_instance()
+void renderer::init_instance()
 {
 	{
 		printf("Instance Layers :\n");
@@ -97,7 +98,7 @@ void vulkan_renderer::init_instance()
 	_instance = vk::createInstance(ci);
 }
 
-void vulkan_renderer::init_device()
+void renderer::init_device()
 {
 	VkResult err = VK_SUCCESS;
 	
@@ -179,7 +180,7 @@ inline VKAPI_ATTR VkBool32 VKAPI_CALL debug_report_callback_fn(
 	return false;
 }
 
-void vulkan_renderer::setup_debug()
+void renderer::setup_debug()
 {
 
 	_debug_report_callback_create_info.flags(
@@ -202,7 +203,7 @@ void vulkan_renderer::setup_debug()
 
 }
 
-void vulkan_renderer::init_debug()
+void renderer::init_debug()
 {
 	fvkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr((VkInstance)_instance, "vkCreateDebugReportCallbackEXT");
 	fvkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr((VkInstance)_instance, "vkDestroyDebugReportCallbackEXT");
@@ -213,21 +214,21 @@ void vulkan_renderer::init_debug()
 	_debug_report_callback = dbg;
 }
 
-void vulkan_renderer::uninit_debug()
+void renderer::uninit_debug()
 {
 	fvkDestroyDebugReportCallbackEXT((VkInstance)_instance, _debug_report_callback, nullptr);
 }
 
 #else
 
-void vulkan_renderer::setup_debug() {}
-void vulkan_renderer::init_debug() {}
-void vulkan_renderer::uninit_debug() {}
+void renderer::setup_debug() {}
+void renderer::init_debug() {}
+void renderer::uninit_debug() {}
 
 #endif
 
 
-void vulkan_renderer::init_render_command_buffers()
+void renderer::init_render_command_buffers()
 {
 	VkCommandPoolCreateInfo command_pool_ci = {};
 	command_pool_ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -244,7 +245,7 @@ void vulkan_renderer::init_render_command_buffers()
 	_render_command_buffers = _device.allocateCommandBuffers(cmd_buffer_alloc_ci);
 }
 
-std::pair<uint32_t, uint32_t> vulkan_renderer::retrieve_queues_family_index()
+std::pair<uint32_t, uint32_t> renderer::retrieve_queues_family_index()
 {
 	std::pair<uint32_t, uint32_t> result(UINT32_MAX, UINT32_MAX);
 	
@@ -275,7 +276,7 @@ std::pair<uint32_t, uint32_t> vulkan_renderer::retrieve_queues_family_index()
 	return result;
 }
 
-uint32_t vulkan_renderer::find_adequate_memory(vk::MemoryRequirements mem_reqs, vk::MemoryPropertyFlagBits requirements_mask) const
+uint32_t renderer::find_adequate_memory(vk::MemoryRequirements mem_reqs, vk::MemoryPropertyFlagBits requirements_mask) const
 {
 	auto bits = mem_reqs.memoryTypeBits();
 
@@ -292,7 +293,7 @@ uint32_t vulkan_renderer::find_adequate_memory(vk::MemoryRequirements mem_reqs, 
 	throw renderer_exception("Cannot find suitable memory for the specified requirements");
 }
 
-void vulkan_renderer::create_window_and_surface(uint32_t width, uint32_t height, uint32_t buffering)
+void renderer::create_window_and_surface(uint32_t width, uint32_t height, uint32_t buffering)
 {
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // This tells GLFW to not create an OpenGL context with the window
 	GLFWwindow * window = glfwCreateWindow(width, height, "vulkan_test", nullptr, nullptr);
@@ -320,7 +321,7 @@ void vulkan_renderer::create_window_and_surface(uint32_t width, uint32_t height,
 	_surface = surface;
 }
 
-vk::ShaderModule vulkan_renderer::load_shader(const std::string & filename) const
+vk::ShaderModule renderer::load_shader(const std::string & filename) const
 {
 	std::ifstream vertex_shader_file{ filename, std::ifstream::binary };
 
@@ -336,7 +337,7 @@ vk::ShaderModule vulkan_renderer::load_shader(const std::string & filename) cons
 	return vertex_shader_module;
 }
 
-void vulkan_renderer::recreate_swapchain(uint32_t buffering, uint32_t width, uint32_t height)
+void renderer::recreate_swapchain(uint32_t buffering, uint32_t width, uint32_t height)
 {
 	vk::SurfaceCapabilitiesKHR surface_capabilities;
 	_gpu.getSurfaceCapabilitiesKHR(_surface, surface_capabilities);
@@ -422,7 +423,7 @@ void vulkan_renderer::recreate_swapchain(uint32_t buffering, uint32_t width, uin
 	_swapchain_format = format.format();
 }
 
-void vulkan_renderer::render(vk::Fence fence)
+void renderer::render(vk::Fence fence)
 {
 	auto result = _device.acquireNextImageKHR(_swapchain, UINT64_MAX, _image_available_semaphore, VK_NULL_HANDLE, &_current_image_index);
 	//if (result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR)
@@ -434,7 +435,14 @@ void vulkan_renderer::render(vk::Fence fence)
 	_graphics_queue.submit(submit_info, fence);
 }
 
-void vulkan_renderer::present() const
+void renderer::present() const
 {
 	_present_queue.presentKHR(vk::PresentInfoKHR{ 1, &_rendering_finished_semaphore, 1, &_swapchain, &_current_image_index, nullptr});
+}
+
+vk::DeviceSize renderer::ubo_aligned_size(vk::DeviceSize size) const
+{
+	vk::DeviceSize align = _gpu_properties.limits().minUniformBufferOffsetAlignment();
+	vk::DeviceSize result = (size + align - 1) & ~(align - 1);
+	return result;
 }

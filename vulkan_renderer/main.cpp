@@ -1,7 +1,7 @@
-#include "vulkan_renderer.h"
-
-#include "math_include.h"
-#include "mesh.h"
+#include "renderer.h"
+#include "camera.h"
+#include "model.h"
+#include "texture.h"
 
 #include <chrono>
 
@@ -14,15 +14,18 @@ int main()
 	std::vector<const char*> instance_extensions;
 	std::vector<const char*> device_extensions;
 
-	//instance_layers.push_back("VK_LAYER_RENDERDOC_Capture");
-	//device_layers.push_back("VK_LAYER_RENDERDOC_Capture");
+	instance_layers.push_back("VK_LAYER_RENDERDOC_Capture");
+	device_layers.push_back("VK_LAYER_RENDERDOC_Capture");
 	
 	//try
 	{
-		vulkan_renderer renderer{ 800, 600, 3, instance_layers , instance_extensions, device_layers, device_extensions };
-		mesh test_mesh{ "data/nanosuit.obj", renderer, 0.5f };
-		
-		auto device = renderer.device();
+		renderer renderer{ 800, 600, 3, instance_layers , instance_extensions, device_layers, device_extensions };
+		model test_mesh{ "data/nanosuit.obj", renderer, 0.5f };
+		texture tex{ "data/arm_dif.png", renderer };
+
+		camera cam(renderer);
+
+		vk::Device device = renderer.device();
 		auto swapchain_images = renderer.swapchain_images();
 
 		vk::ClearColorValue clear_color[] = {   { std::array<float, 4>{1.0f, 0.0f, 1.0f, 0.0f} },
@@ -32,9 +35,9 @@ int main()
 		vk::ImageSubresourceRange img_subresource_range{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 };
 
 
-		vk::AttachmentDescription attachment_descriptions[]{ { {}, renderer.format(), vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare, vk::ImageLayout::ePresentSrcKHR, vk::ImageLayout::ePresentSrcKHR } };
-		vk::AttachmentReference color_attachment_references[]{ { 0, vk::ImageLayout::eColorAttachmentOptimal } };
-		vk::SubpassDescription subpass_descriptions[]{ { {}, vk::PipelineBindPoint::eGraphics, 0, nullptr, 1, color_attachment_references,nullptr,nullptr,0,nullptr } };
+		vk::AttachmentDescription attachment_descriptions[]{ vk::AttachmentDescription{ {}, renderer.format(), vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore, vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare, vk::ImageLayout::ePresentSrcKHR, vk::ImageLayout::ePresentSrcKHR } };
+		vk::AttachmentReference color_attachment_references[]{ vk::AttachmentReference{ 0, vk::ImageLayout::eColorAttachmentOptimal } };
+		vk::SubpassDescription subpass_descriptions[]{ vk::SubpassDescription{ {}, vk::PipelineBindPoint::eGraphics, 0, nullptr, 1, color_attachment_references,nullptr,nullptr,0,nullptr } };
 
 		auto render_pass = device.createRenderPass({ {}, 1, attachment_descriptions, 1, subpass_descriptions, 0, nullptr });
 
@@ -61,8 +64,8 @@ int main()
 			vk::PipelineShaderStageCreateInfo{ {}, vk::ShaderStageFlagBits::eFragment, fragment_shader_module, "main", nullptr },
 		};
 
-		auto attribute_desc = mesh::attribute_descriptions(0);
-		auto binding_desc = mesh::binding_description(0);
+		auto attribute_desc = model::attribute_descriptions(0);
+		auto binding_desc = model::binding_description(0);
 
 		vk::PipelineVertexInputStateCreateInfo vertex_input_state_create_info{ {}, 1, &binding_desc, (uint32_t)attribute_desc.size(), attribute_desc.data() };
 
@@ -84,25 +87,21 @@ int main()
 		vk::PipelineColorBlendStateCreateInfo color_blend_state_create_info{ {}, VK_FALSE, vk::LogicOp::eCopy, 1, &color_blend_attachment_state, {0.0f,0.0f,0.0f,0.0f} };
 
 
+	
+		vk::DescriptorSetLayoutBinding desc_layout_ubo_vertex { 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr };
+		vk::DescriptorSetLayoutBinding desc_layout_sampler_fragment { 0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr };
 
-		std::vector<vk::DescriptorSetLayoutBinding> descriptor_set_layout_bindings{ 
-			vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr },
-			//vk::DescriptorSetLayoutBinding{ 1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr },
-		};
 		
-		vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info{ {}, (uint32_t)descriptor_set_layout_bindings.size(), descriptor_set_layout_bindings.data() };
+		vk::DescriptorSetLayoutCreateInfo descriptor_set_layout_create_info{};
 
 		// TODO(antoine) destroy
-		vk::DescriptorSetLayout descriptor_set_layout = device.createDescriptorSetLayout(descriptor_set_layout_create_info);
-
-
-	
+		std::vector<vk::DescriptorSetLayout> descriptor_set_layout{ 
+			device.createDescriptorSetLayout({ {}, 1, &desc_layout_ubo_vertex }), // View
+			device.createDescriptorSetLayout({ {}, 1, &desc_layout_ubo_vertex }), // Model
+			device.createDescriptorSetLayout({ {}, 1, &desc_layout_sampler_fragment }) // Sampler
+		};
 		
-		
-
-		// vk::PushConstantRange push_constant_range{ vk::ShaderStageFlagBits::eVertex, 0, sizeof(glm::mat4) };
-
-		vk::PipelineLayoutCreateInfo pipeline_layout_create_info{ {}, 1, &descriptor_set_layout, 0, nullptr };
+		vk::PipelineLayoutCreateInfo pipeline_layout_create_info{ {}, (uint32_t)descriptor_set_layout.size(), descriptor_set_layout.data(), 0, nullptr };
 
 		// TODO(antoine) destroy
 		auto pipeline_layout = device.createPipelineLayout(pipeline_layout_create_info);
@@ -118,26 +117,29 @@ int main()
 		
 
 		std::vector<vk::DescriptorPoolSize> descriptor_pool_size{ 
-			{ vk::DescriptorType::eUniformBuffer, 1},
-			//{ vk::DescriptorType::eCombinedImageSampler, 1 },
+			vk::DescriptorPoolSize{ vk::DescriptorType::eUniformBuffer, 2},
+			vk::DescriptorPoolSize{ vk::DescriptorType::eCombinedImageSampler, 1 },
 		};
 		
-		vk::DescriptorPoolCreateInfo descriptor_pool_create_info{ {}, 1, (uint32_t)descriptor_pool_size.size(), descriptor_pool_size.data() };
+		vk::DescriptorPoolCreateInfo descriptor_pool_create_info{ {}, (uint32_t)descriptor_set_layout.size(), (uint32_t)descriptor_pool_size.size(), descriptor_pool_size.data() };
 
 		// TODO(antoine) destroy
 		auto descriptor_pool = device.createDescriptorPool(descriptor_pool_create_info);
 
-		vk::DescriptorSetAllocateInfo descriptor_set_allocate_info{ descriptor_pool, 1, &descriptor_set_layout };
+		vk::DescriptorSetAllocateInfo descriptor_set_allocate_info{ descriptor_pool, (uint32_t)descriptor_set_layout.size(), descriptor_set_layout.data() };
 
+		std::vector<vk::DescriptorSet> descriptor_sets = device.allocateDescriptorSets(descriptor_set_allocate_info);
 		
-			
-		auto descriptor_set = device.allocateDescriptorSets(descriptor_set_allocate_info)[0];
-		
-		auto descriptor_buffer_info = test_mesh.descriptor_buffer_info();
+		auto descriptor_buffer_info_model = test_mesh.descriptor_buffer_info();
+		auto descriptor_buffer_info_camera = cam.descriptor_buffer_info();
+		auto descriptor_image_info = tex.descriptor_image_info();
 
-		vk::WriteDescriptorSet descriptor_write{ descriptor_set, 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &descriptor_buffer_info, nullptr };
-		
-		device.updateDescriptorSets(1, &descriptor_write, 0, nullptr);
+		std::vector<vk::WriteDescriptorSet> descriptor_writes{ 
+			vk::WriteDescriptorSet{ descriptor_sets[0], 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &descriptor_buffer_info_camera, nullptr },
+			vk::WriteDescriptorSet{ descriptor_sets[1], 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &descriptor_buffer_info_model, nullptr },
+			vk::WriteDescriptorSet{ descriptor_sets[2], 0, 0, 1, vk::DescriptorType::eCombinedImageSampler, &descriptor_image_info, nullptr, nullptr },
+		};
+		device.updateDescriptorSets(descriptor_writes, {});
 
 
 		auto& render_cmd_buffers = renderer.render_command_buffers();
@@ -172,10 +174,9 @@ int main()
 
 			cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, graphics_pipeline);
 
-			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
+			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, (uint32_t)descriptor_sets.size(), descriptor_sets.data(), 0, nullptr);
 
-			test_mesh.bind(cmd, 0);
-			test_mesh.draw(cmd);
+			test_mesh.draw(cmd, pipeline_layout);
 
 			cmd.endRenderPass();
 
@@ -190,35 +191,10 @@ int main()
 		
 		
 		
-
-
-
-		long long timings[10] = {};
-		int timing_index=0;
-		long long timing_sum = 0;
-		auto last_time = std::chrono::high_resolution_clock::now();
 		while (!glfwWindowShouldClose(renderer.window_handle()))
 		{
 			renderer.render();
-
 			renderer.present();
-
-			auto current_time = std::chrono::high_resolution_clock::now();
-
-			auto dt = std::chrono::duration_cast<std::chrono::microseconds>(current_time - last_time);
-			
-			timing_sum -= timings[timing_index % 10];
-			timings[timing_index%10] = dt.count();
-			timing_sum += timings[timing_index % 10];
-
-			timing_index++;
-
-			last_time = current_time;
-
-			char title[256];
-			snprintf(title, 256, "Frame Time %f ms (fps : %f)", timing_sum/10000.0, 10000000.0/timing_sum);
-			glfwSetWindowTitle(renderer.window_handle(), title);
-
 			glfwPollEvents();
 		}
 	}
