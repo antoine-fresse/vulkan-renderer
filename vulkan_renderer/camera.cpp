@@ -1,5 +1,6 @@
 #include "camera.h"
 #include "renderer.h"
+#include "pipeline.h"
 
 camera::camera(renderer& renderer) : _renderer(renderer), _ubo(renderer, vk::BufferUsageFlagBits::eVertexBuffer)
 {
@@ -19,4 +20,17 @@ camera::camera(renderer& renderer) : _renderer(renderer), _ubo(renderer, vk::Buf
 vk::DescriptorBufferInfo camera::descriptor_buffer_info() const
 {
 	return { _ubo.buffer(), 0, sizeof(glm::mat4) };
+}
+
+void camera::attach(pipeline& pipeline)
+{	
+	_descriptor_set = pipeline.allocate(0);
+	auto bi = descriptor_buffer_info();
+	vk::WriteDescriptorSet write{ *_descriptor_set, 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &bi, nullptr };
+	_renderer.device().updateDescriptorSets(1, &write, 0, nullptr);
+}
+
+vk::DescriptorSet camera::descriptor_set() const
+{
+	return *_descriptor_set;
 }

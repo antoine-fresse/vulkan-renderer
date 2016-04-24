@@ -14,3 +14,10 @@ public:
 	{
 	}
 };
+
+
+template<typename T, size_t N>
+size_t array_sizeof(T(&)[N])
+{
+	return N;
+}

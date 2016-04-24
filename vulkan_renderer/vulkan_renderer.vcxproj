@@ -137,6 +137,7 @@
     <ClInclude Include="config_defines.h" />
     <ClInclude Include="math_include.h" />
     <ClInclude Include="model.h" />
+    <ClInclude Include="pipeline.h" />
     <ClInclude Include="platform.h" />
     <ClInclude Include="shared.h" />
     <ClInclude Include="stb\stb_image.h" />
@@ -151,6 +152,7 @@
     <ClCompile Include="camera.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="model.cpp" />
+    <ClCompile Include="pipeline.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="texture.cpp" />
     <ClCompile Include="texture_manager.cpp" />

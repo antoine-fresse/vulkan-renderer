@@ -4,8 +4,11 @@
 #include "texture.h"
 
 #include <memory>
+#include <chrono>
 
+class pipeline;
 class renderer;
+class managed_descriptor_set;
 
 class model
 {
@@ -19,8 +22,11 @@ public:
 
 	vk::DescriptorBufferInfo descriptor_buffer_info() const { return vk::DescriptorBufferInfo{ _buffer, _uniform_buffer_offset, sizeof(uniform_object) }; }
 
-	void draw(const vk::CommandBuffer& cmd, vk::PipelineLayout layout, uint32_t bind_id = 0) const;
+	void draw(const vk::CommandBuffer& cmd, pipeline& pipeline, uint32_t bind_id = 0) const;
 	
+	void attach_textures(pipeline& pipeline, uint32_t set_index);
+	void update(double dt);
+
 private:
 	
 	struct vertex
@@ -37,7 +43,7 @@ private:
 		std::shared_ptr<texture> diffuse_texture;
 		std::shared_ptr<texture> normal_texture;
 		std::shared_ptr<texture> specular_texture;
-		vk::DescriptorSet textures_set;
+		std::shared_ptr<managed_descriptor_set> textures_set;
 	};
 
 	std::vector<material> _materials;
@@ -61,6 +67,7 @@ private:
 		void vertex_buffer_offset(vk::DeviceSize val) { _vertex_buffer_offset = val; }
 		void index_buffer_offset(vk::DeviceSize val) { _index_buffer_offset = val; }
 		void index_count(vk::DeviceSize val) { _index_count = val; }
+
 
 	private:
 		vk::DeviceSize _vertex_buffer_offset;

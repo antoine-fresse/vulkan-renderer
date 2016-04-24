@@ -24,5 +24,6 @@ void main()
 	float ambient = 0.1f;
 
 	//out_Color = vec4(inNormal, 1.0);
-	out_Color = (ambient+diff)*texture(diffuse_map, inUV);
+	//out_Color = (ambient+diff)*texture(diffuse_map, inUV);
+	out_Color = texture(diffuse_map, inUV);
 }

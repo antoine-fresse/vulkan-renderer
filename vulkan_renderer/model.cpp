@@ -1,7 +1,9 @@
 #include "model.h"
 
 #include "shared.h"
+
 #include "renderer.h"
+#include "pipeline.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>           // Output data structure
@@ -23,6 +25,14 @@ model::~model()
 }
 
 
+void model::update(double dt)
+{
+	vk::Device device = _renderer.device();
+	_uniform_object.model_matrix = glm::rotate(_uniform_object.model_matrix, (float)(dt*glm::pi<double>()/8.0), glm::vec3(0, 1, 0));
+	void* mapped_ubo = device.mapMemory(_memory, _uniform_buffer_offset, sizeof(uniform_object), {});
+	memcpy(mapped_ubo, &_uniform_object, sizeof(uniform_object));
+	device.unmapMemory(_memory);
+}
 
 void model::load_model(const std::string& filepath, float scale)
 {
@@ -49,13 +59,17 @@ void model::load_model(const std::string& filepath, float scale)
 		aiString spec_path;
 		aiString normal_path;
 
-		if (mat->Get(AI_MATKEY_TEXTURE_DIFFUSE(0), diffuse_path) != AI_SUCCESS) continue;
-		if (mat->Get(AI_MATKEY_TEXTURE_NORMALS(0), normal_path) != AI_SUCCESS) continue;
-		if (mat->Get(AI_MATKEY_TEXTURE_SPECULAR(0), spec_path) != AI_SUCCESS) continue;
+		int success = 3;
+
+		
+		if (mat->GetTexture(aiTextureType_DIFFUSE, 0, &diffuse_path) != AI_SUCCESS) --success;
+		if (mat->GetTexture(aiTextureType_NORMALS, 0, &normal_path) != AI_SUCCESS) --success;
+		if (mat->GetTexture(aiTextureType_SPECULAR, 0, &spec_path) != AI_SUCCESS) --success;
 		
 
 		material_assoc[i] = _materials.size();
-		_materials.push_back({_renderer.tex_manager().find_texture(diffuse_path.C_Str()), _renderer.tex_manager().find_texture(normal_path.C_Str()) ,_renderer.tex_manager().find_texture(spec_path.C_Str()) , VK_NULL_HANDLE});
+		//_materials.push_back({_renderer.tex_manager().find_texture(diffuse_path.C_Str()), _renderer.tex_manager().find_texture(normal_path.C_Str()) ,_renderer.tex_manager().find_texture(spec_path.C_Str()) , VK_NULL_HANDLE});
+		_materials.push_back({_renderer.tex_manager().find_texture(diffuse_path.C_Str()), nullptr , nullptr , VK_NULL_HANDLE});
 	}
 	
 
@@ -149,13 +163,29 @@ std::vector<vk::VertexInputAttributeDescription> model::attribute_descriptions(u
 	return attribute_description;
 }
 
-void model::draw(const vk::CommandBuffer& cmd, vk::PipelineLayout layout, uint32_t bind_id) const
+void model::draw(const vk::CommandBuffer& cmd, pipeline& pipeline, uint32_t bind_id) const
 {
 	for(auto& m : _meshes)
 	{
-		//cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, layout, 2, 1, &_materials[m.material_index()].textures_set, 0, nullptr);
+		vk::DescriptorSet set = *_materials[m.material_index()].textures_set;
+		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.pipeline_layout(), 2, 1, &set, 0, nullptr);
 		cmd.bindVertexBuffer(bind_id, _buffer, m.vertex_buffer_offset());
 		cmd.bindIndexBuffer(_buffer, m.index_buffer_offset(), vk::IndexType::eUint32);
 		cmd.drawIndexed(m.index_count(), 1, 0, 0, 0);
+	}
+}
+
+void model::attach_textures(pipeline& pipeline, uint32_t set_index)
+{
+	for(auto& mat : _materials)
+	{
+		mat.textures_set = pipeline.allocate(set_index);
+		std::vector<vk::DescriptorImageInfo> image_info{
+			mat.diffuse_texture->descriptor_image_info(),
+			//mat.normal_texture->descriptor_image_info(),
+			//mat.specular_texture->descriptor_image_info(),
+		};
+		vk::WriteDescriptorSet write{ *mat.textures_set, 0, 0, (uint32_t)image_info.size(), vk::DescriptorType::eCombinedImageSampler, image_info.data(), nullptr, nullptr };
+		_renderer.device().updateDescriptorSets(1, &write, 0, nullptr);
 	}
 }

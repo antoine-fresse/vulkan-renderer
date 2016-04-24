@@ -5,6 +5,8 @@
 #include "ubo.h"
 
 class renderer;
+class pipeline;
+class managed_descriptor_set;
 
 class camera
 {
@@ -52,7 +54,9 @@ public:
 
 	vk::DescriptorBufferInfo descriptor_buffer_info() const;
 
+	void attach(pipeline& pipeline);
 
+	vk::DescriptorSet descriptor_set() const;
 private:
 	renderer& _renderer;
 
@@ -71,4 +75,6 @@ private:
 	glm::mat4 _view;
 
 	single_ubo<glm::mat4, false> _ubo;
+
+	std::shared_ptr<managed_descriptor_set> _descriptor_set = nullptr;
 };

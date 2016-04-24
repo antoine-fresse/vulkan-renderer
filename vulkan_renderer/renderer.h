@@ -11,27 +11,27 @@ public:
 	renderer(uint32_t width, uint32_t height, uint32_t buffering, const std::vector<const char*>& instance_layers, const std::vector<const char*>& instance_extensions, const std::vector<const char*>& device_layers, const std::vector<const char*>& device_extensions);
 	~renderer();
 
-	const auto&								instance()						const { return _instance; }
-	const auto&								gpu()							const { return _gpu; }
-	const auto&								device()						const { return _device; }
-	const auto&								graphics_queue()				const { return _graphics_queue; }
-	const auto&								present_queue()					const { return _present_queue; }
+	vk::Instance							instance()						const { return _instance; }
+	vk::PhysicalDevice						gpu()							const { return _gpu; }
+	vk::Device								device()						const { return _device; }
+	vk::Queue								graphics_queue()				const { return _graphics_queue; }
+	vk::Queue								present_queue()					const { return _present_queue; }
 	auto									graphics_family_index()			const { return _graphics_family_index; }
 	auto									present_family_index()			const { return _present_family_index; }
-	const auto&								rendering_finished_semaphore()	const { return _rendering_finished_semaphore; }
-	const auto&								surface()						const { return _surface; }
-	const auto&								image_available_semaphore()		const { return _image_available_semaphore; }
-	const auto&								swapchain()						const { return _swapchain; }
-	const auto&								swapchain_images()				const { return _swapchain_images; }
-	const auto&								format()						const { return _swapchain_format; }
-	const auto&								gpu_properties()				const { return _gpu_properties; }
-	auto*									window_handle()					const { return _window; }
+	vk::Semaphore							rendering_finished_semaphore()	const { return _rendering_finished_semaphore; }
+	vk::SurfaceKHR							surface()						const { return _surface; }
+	vk::Semaphore							image_available_semaphore()		const { return _image_available_semaphore; }
+	vk::SwapchainKHR						swapchain()						const { return _swapchain; }
+	const std::vector<vk::Image>&			swapchain_images()				const { return _swapchain_images; }
+	vk::Format								format()						const { return _swapchain_format; }
+	const vk::PhysicalDeviceProperties&		gpu_properties()				const { return _gpu_properties; }
+	GLFWwindow*								window_handle()					const { return _window; }
 	auto									width() 						const { return _width; }
 	auto									height()						const { return _height; }
 	bool									ready()							const { return _ready;	}
-	const auto&								render_command_buffers()		const { return _render_command_buffers;	}
+	const std::vector<vk::CommandBuffer>&	render_command_buffers()		const { return _render_command_buffers;	}
 	
-	auto&									tex_manager() { return _texture_manager; }
+	texture_manager&						tex_manager() { return _texture_manager; }
 	vk::ShaderModule						load_shader(const std::string& filename) const;
 	uint32_t								find_adequate_memory(vk::MemoryRequirements mem_reqs, vk::MemoryPropertyFlagBits requirements_mask) const;
 

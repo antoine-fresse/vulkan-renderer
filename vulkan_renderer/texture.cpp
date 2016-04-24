@@ -8,8 +8,10 @@
 
 texture::texture(const std::string& filepath, renderer& renderer): _renderer(renderer), _image_layout(vk::ImageLayout::eShaderReadOnlyOptimal)
 {
+	
+	
 	int x,y,comp;
-	unsigned char *data = stbi_load(filepath.c_str(), &x, &y, &comp, 4);
+	unsigned char *data = stbi_load(("data/" + filepath).c_str(), &x, &y, &comp, 4);
 	
 	_width = x;
 	_height = y;
