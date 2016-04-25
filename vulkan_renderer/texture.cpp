@@ -15,10 +15,10 @@ texture::texture(const std::string& filepath, renderer& renderer): _renderer(ren
 	
 	_width = x;
 	_height = y;
-	_components = comp;
+	uint32_t components = comp;
 	_mip_levels = 1;
 	
-	vk::Format format = _components == 4 ? vk::Format::eR8G8B8A8Unorm : vk::Format::eR8G8B8Unorm;
+	vk::Format format = components == 4 ? vk::Format::eR8G8B8A8Unorm : vk::Format::eR8G8B8Unorm;
 	vk::ImageCreateInfo image_ci{ {},
 		vk::ImageType::e2D,
 		format,
@@ -53,7 +53,7 @@ texture::texture(const std::string& filepath, renderer& renderer): _renderer(ren
 
 	mapped_data = device.mapMemory(_memory, 0, _image_mem_reqs.size(), {});
 	
-	memcpy(mapped_data, data, _width*_height*_components);
+	memcpy(mapped_data, data, _width*_height*components);
 
 	device.unmapMemory(_memory);
 	stbi_image_free(data);
@@ -84,12 +84,81 @@ texture::texture(const std::string& filepath, renderer& renderer): _renderer(ren
 		_image,
 		vk::ImageViewType::e2D,
 		format,
-		vk::ComponentMapping{ vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, _components == 4 ? vk::ComponentSwizzle::eA : vk::ComponentSwizzle::eOne },
+		vk::ComponentMapping{ vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, components == 4 ? vk::ComponentSwizzle::eA : vk::ComponentSwizzle::eOne },
 		vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
 	};
 	_image_view = device.createImageView(image_view_ci);
 }
 
+
+texture::texture(const description& desc, renderer& renderer) : _renderer(renderer), _image_layout(desc.layout)
+{
+	_width = desc.size.width();
+	_height = desc.size.height();
+	_mip_levels = 1;
+
+	// TODO(antoine) create texture
+
+	/*
+	
+	VkImageCreateInfo image = {};
+	image.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	image.pNext = NULL;
+	image.imageType = VK_IMAGE_TYPE_2D;
+	image.format = depthFormat;
+	image.extent = { width, height, 1 };
+	image.mipLevels = 1;
+	image.arrayLayers = 1;
+	image.samples = VK_SAMPLE_COUNT_1_BIT;
+	image.tiling = VK_IMAGE_TILING_OPTIMAL;
+	image.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	image.flags = 0;
+
+	VkMemoryAllocateInfo mem_alloc = {};
+	mem_alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	mem_alloc.pNext = NULL;
+	mem_alloc.allocationSize = 0;
+	mem_alloc.memoryTypeIndex = 0;
+
+	VkImageViewCreateInfo depthStencilView = {};
+	depthStencilView.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	depthStencilView.pNext = NULL;
+	depthStencilView.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	depthStencilView.format = depthFormat;
+	depthStencilView.flags = 0;
+	depthStencilView.subresourceRange = {};
+	depthStencilView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+	depthStencilView.subresourceRange.baseMipLevel = 0;
+	depthStencilView.subresourceRange.levelCount = 1;
+	depthStencilView.subresourceRange.baseArrayLayer = 0;
+	depthStencilView.subresourceRange.layerCount = 1;
+
+	VkMemoryRequirements memReqs;
+	VkResult err;
+
+	err = vkCreateImage(device, &image, nullptr, &depthStencil.image);
+	assert(!err);
+	vkGetImageMemoryRequirements(device, depthStencil.image, &memReqs);
+	mem_alloc.allocationSize = memReqs.size;
+	getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &mem_alloc.memoryTypeIndex);
+	err = vkAllocateMemory(device, &mem_alloc, nullptr, &depthStencil.mem);
+	assert(!err);
+
+	err = vkBindImageMemory(device, depthStencil.image, depthStencil.mem, 0);
+	assert(!err);
+	vkTools::setImageLayout(
+		setupCmdBuffer,
+		depthStencil.image,
+		VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+		VK_IMAGE_LAYOUT_UNDEFINED,
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
+	depthStencilView.image = depthStencil.image;
+	err = vkCreateImageView(device, &depthStencilView, nullptr, &depthStencil.view);
+	assert(!err);
+	
+	*/
+}
 texture::~texture()
 {
 	vk::Device device = _renderer.device();

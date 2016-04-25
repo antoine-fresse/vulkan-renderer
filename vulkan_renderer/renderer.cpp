@@ -108,6 +108,30 @@ void renderer::init_device()
 	_memory_properties = _gpu.getMemoryProperties();
 	_gpu_properties = _gpu.getProperties();
 	
+
+
+	std::vector<vk::Format> depth_formats = {
+		vk::Format::eD32SfloatS8Uint,
+		vk::Format::eD32Sfloat,
+		vk::Format::eD24UnormS8Uint,
+		vk::Format::eD16UnormS8Uint,
+		vk::Format::eD16Unorm,
+	};
+
+	_depth_format = vk::Format::eUndefined;
+
+	for (auto& format : depth_formats)
+	{
+		auto format_props = _gpu.getFormatProperties(format);
+		if (format_props.optimalTilingFeatures() & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+		{
+			_depth_format = format;
+			break;
+		}
+	}
+	if (_depth_format == vk::Format::eUndefined)
+		throw renderer_exception("Cannot find suitable depth format");
+
 	std::tie(_graphics_family_index, _present_family_index) = retrieve_queues_family_index();
 
 	float queue_priorities[] = { 1.0f };

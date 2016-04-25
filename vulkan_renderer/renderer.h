@@ -30,13 +30,16 @@ public:
 	auto									height()						const { return _height; }
 	bool									ready()							const { return _ready;	}
 	const std::vector<vk::CommandBuffer>&	render_command_buffers()		const { return _render_command_buffers;	}
-	
+	vk::Format								depth_format()					const { return _depth_format; }
+
 	texture_manager&						tex_manager() { return _texture_manager; }
 	vk::ShaderModule						load_shader(const std::string& filename) const;
 	uint32_t								find_adequate_memory(vk::MemoryRequirements mem_reqs, vk::MemoryPropertyFlagBits requirements_mask) const;
 
 	void									render(vk::Fence fence = {});
 	void									present() const;
+	
+	
 
 	vk::DeviceSize							ubo_aligned_size(vk::DeviceSize size) const;
 
@@ -93,7 +96,7 @@ private:
 	vk::Semaphore							_image_available_semaphore;
 
 	vk::Format								_swapchain_format;
-
+	vk::Format								_depth_format;
 	vk::CommandPool							_render_command_pool;
 	std::vector<vk::CommandBuffer>			_render_command_buffers;
 
