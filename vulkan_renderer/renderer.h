@@ -39,7 +39,10 @@ public:
 	void									render(vk::Fence fence = {});
 	void									present() const;
 	
-	
+	void									push_setup(const vk::ImageMemoryBarrier& barrier);
+	void									push_setup(const vk::BufferMemoryBarrier& barrier);
+
+	void									flush_setup();
 
 	vk::DeviceSize							ubo_aligned_size(vk::DeviceSize size) const;
 
@@ -99,7 +102,8 @@ private:
 	vk::Format								_depth_format;
 	vk::CommandPool							_render_command_pool;
 	std::vector<vk::CommandBuffer>			_render_command_buffers;
-
+	vk::CommandBuffer						_setup_command_buffer;
+	bool									_need_setup = false;
 	uint32_t								_current_image_index;
 	
 	texture_manager							_texture_manager;

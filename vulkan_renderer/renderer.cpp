@@ -263,10 +263,12 @@ void renderer::init_render_command_buffers()
 	VkCommandBufferAllocateInfo cmd_buffer_alloc_ci = {};
 	cmd_buffer_alloc_ci.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	cmd_buffer_alloc_ci.commandPool = _render_command_pool;
-	cmd_buffer_alloc_ci.commandBufferCount = _swapchain_images.size();
+	cmd_buffer_alloc_ci.commandBufferCount = _swapchain_images.size()+1;
 	cmd_buffer_alloc_ci.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
 	_render_command_buffers = _device.allocateCommandBuffers(cmd_buffer_alloc_ci);
+	_setup_command_buffer = _render_command_buffers.back();
+	_render_command_buffers.pop_back();
 }
 
 std::pair<uint32_t, uint32_t> renderer::retrieve_queues_family_index()
@@ -313,6 +315,7 @@ uint32_t renderer::find_adequate_memory(vk::MemoryRequirements mem_reqs, vk::Mem
 				return i;
 			}
 		}
+		bits >>= 1;
 	}
 	throw renderer_exception("Cannot find suitable memory for the specified requirements");
 }
@@ -449,6 +452,10 @@ void renderer::recreate_swapchain(uint32_t buffering, uint32_t width, uint32_t h
 
 void renderer::render(vk::Fence fence)
 {
+	if (_need_setup)
+		flush_setup();
+
+
 	auto result = _device.acquireNextImageKHR(_swapchain, UINT64_MAX, _image_available_semaphore, VK_NULL_HANDLE, &_current_image_index);
 	//if (result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR)
 	//	renderer.window_size_changed();
@@ -456,12 +463,48 @@ void renderer::render(vk::Fence fence)
 	vk::PipelineStageFlags pipeline_stage_flags{ vk::PipelineStageFlagBits::eTransfer };
 	vk::SubmitInfo submit_info{ 1, &_image_available_semaphore, &pipeline_stage_flags, 1, &_render_command_buffers[_current_image_index], 1, &_rendering_finished_semaphore };
 
+	
+
 	_graphics_queue.submit(submit_info, fence);
 }
 
 void renderer::present() const
 {
 	_present_queue.presentKHR(vk::PresentInfoKHR{ 1, &_rendering_finished_semaphore, 1, &_swapchain, &_current_image_index, nullptr});
+}
+
+void renderer::push_setup(const vk::ImageMemoryBarrier& barrier)
+{
+	if(!_need_setup)
+	{
+		_setup_command_buffer.begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit, nullptr });
+		_need_setup = true;
+	}
+	_setup_command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTopOfPipe, {}, 0, nullptr, 0, nullptr, 1, &barrier);
+
+}
+
+void renderer::push_setup(const vk::BufferMemoryBarrier& barrier)
+{
+	if (!_need_setup)
+	{
+		_setup_command_buffer.begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit, nullptr });
+		_need_setup = true;
+	}
+	_setup_command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTopOfPipe, {}, 0, nullptr, 1, &barrier, 0, nullptr);
+}
+
+void renderer::flush_setup()
+{
+	_setup_command_buffer.end();
+	vk::SubmitInfo submit_info{ 0, nullptr, nullptr, 1, &_setup_command_buffer, 0, nullptr };
+	_graphics_queue.submit(1, &submit_info, VK_NULL_HANDLE);
+	
+	// TODO(antoine) non blocking/fast way to do setups
+	_graphics_queue.waitIdle();
+
+	_setup_command_buffer.reset({});
+	_need_setup = false;
 }
 
 vk::DeviceSize renderer::ubo_aligned_size(vk::DeviceSize size) const

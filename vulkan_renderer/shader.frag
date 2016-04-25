@@ -15,15 +15,16 @@ layout(location = 0) out vec4 out_Color;
 
 void main() 
 {  
-	vec3 light_pos = vec3(0,10,0);
+	vec3 light_pos = vec3(0,100,0);
 
 	vec3 norm = normalize(inNormal);
 	vec3 light_dir = normalize(light_pos - inFragPos);
+
 	float diff = max(dot(norm, light_dir), 0.0);
 
 	float ambient = 0.1f;
 
 	//out_Color = vec4(inNormal, 1.0);
-	//out_Color = (ambient+diff)*texture(diffuse_map, inUV);
-	out_Color = texture(diffuse_map, inUV);
+	out_Color = (ambient+diff)*texture(diffuse_map, inUV);
+	//out_Color = texture(diffuse_map, inUV);
 }

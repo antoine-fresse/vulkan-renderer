@@ -44,7 +44,7 @@ void model::load_model(const std::string& filepath, float scale)
 	if (!scene)
 		throw renderer_exception("Cannot load mesh from file : " + filepath);
 
-	auto model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -5.0f, 0.0f));
+	auto model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
 	_uniform_object.model_matrix = model;
 
 	std::vector<vertex> vertices;

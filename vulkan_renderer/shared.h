@@ -21,3 +21,12 @@ size_t array_sizeof(T(&)[N])
 {
 	return N;
 }
+
+
+struct input_state
+{
+	bool up;
+	bool down;
+	bool left;
+	bool right;
+};

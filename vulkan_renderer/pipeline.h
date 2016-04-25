@@ -1,6 +1,6 @@
 #pragma once
 #include "vulkan_include.h"
-
+#include "texture.h"
 
 #include <memory>
 
@@ -32,6 +32,8 @@ public:
 		_descriptor_pools[index].free_sets.push_back(set);
 	}
 	std::unique_ptr<managed_descriptor_set> allocate(uint32_t index);
+	texture* depth_buffer() const { return _depth_buffer.get(); }
+	void create_depth_buffer(const texture::description& desc);
 
 	~pipeline();
 	
@@ -58,7 +60,7 @@ private:
 
 	std::vector<descriptor_pool_manager> _descriptor_pools;
 
-
+	std::unique_ptr<texture> _depth_buffer = nullptr;
 };
 
 

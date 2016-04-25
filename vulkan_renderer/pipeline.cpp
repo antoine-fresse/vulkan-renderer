@@ -3,7 +3,6 @@
 #include "shared.h"
 
 #include "renderer.h"
-#include <numeric>
 #include <set>
 
 
@@ -33,7 +32,10 @@ pipeline::pipeline(renderer& renderer, vk::RenderPass render_pass, const descrip
 
 	_pipeline_layout = _renderer.device().createPipelineLayout(pipeline_layout_create_info);
 
-	vk::PipelineDepthStencilStateCreateInfo depth_stencil_create_info{ {}, VK_TRUE, VK_TRUE, vk::CompareOp::eLessOrEqual, VK_FALSE, VK_FALSE, vk::StencilOpState{}, vk::StencilOpState{}, 0.0f, 1.0f };
+	vk::StencilOpState back_stencil_state{};
+	back_stencil_state.compareOp(vk::CompareOp::eAlways);
+
+	vk::PipelineDepthStencilStateCreateInfo depth_stencil_create_info{ {}, VK_TRUE, VK_TRUE, vk::CompareOp::eLessOrEqual, VK_FALSE, VK_FALSE, vk::StencilOpState{}, back_stencil_state, 0.0f, 0.0f };
 
 	vk::GraphicsPipelineCreateInfo graphics_pipeline_create_info{ {}, (uint32_t)shader_stages_ci.size(), shader_stages_ci.data(), &vertex_input_state_create_info, &input_assembly_state_create_info, nullptr, &viewport_state_create_info,&rasterization_state_create_info, &multisample_state_create_info, &depth_stencil_create_info, &color_blend_state_create_info, nullptr, _pipeline_layout, render_pass, 0, VK_NULL_HANDLE, -1 };
 
@@ -101,4 +103,9 @@ std::unique_ptr<managed_descriptor_set> pipeline::allocate(uint32_t index)
 	}
 
 	return std::make_unique<managed_descriptor_set>(set, index, *this);
+}
+
+void pipeline::create_depth_buffer(const texture::description& desc)
+{
+	_depth_buffer = std::make_unique<texture>(desc, _renderer);
 }

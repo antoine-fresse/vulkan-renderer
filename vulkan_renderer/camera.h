@@ -4,6 +4,7 @@
 #include "math_include.h"
 #include "ubo.h"
 
+struct input_state;
 class renderer;
 class pipeline;
 class managed_descriptor_set;
@@ -51,10 +52,12 @@ public:
 		_view = mat;
 		_dirty = true;
 	}
+	
+	void update(double dt, const input_state& inputs);
 
 	vk::DescriptorBufferInfo descriptor_buffer_info() const;
 
-	void attach(pipeline& pipeline);
+	void attach(pipeline& pipeline, uint32_t set_index);
 
 	vk::DescriptorSet descriptor_set() const;
 private:
