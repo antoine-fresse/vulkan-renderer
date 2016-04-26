@@ -88,7 +88,7 @@ texture::texture(const std::string& filepath, renderer& renderer): _renderer(ren
 		vk::ImageViewType::e2D,
 		format,
 		vk::ComponentMapping{ vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA},
-		vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+		vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, _mip_levels, 0, 1}
 	};
 	_image_view = device.createImageView(image_view_ci);
 

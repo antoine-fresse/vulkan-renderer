@@ -24,7 +24,10 @@ void main()
 
 	float ambient = 0.1f;
 
+	vec4 diffuse_texel = texture(diffuse_map, inUV);
 	//out_Color = vec4(inNormal, 1.0);
-	out_Color = (ambient+diff)*texture(diffuse_map, inUV);
-	//out_Color = texture(diffuse_map, inUV);
+	//if(gl_FragCoord.x < 400)
+		out_Color = (ambient+diff)*diffuse_texel;
+	//else
+	//	out_Color = diffuse_texel;
 }

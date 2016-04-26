@@ -40,7 +40,7 @@ void model::load_model(const std::string& filepath, float scale)
 
 	uint32_t flags = aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_OptimizeMeshes | aiProcess_SortByPType | aiProcess_RemoveRedundantMaterials;
 	const aiScene* scene = importer.ReadFile(filepath, flags);
-
+	
 	if (!scene)
 		throw renderer_exception("Cannot load mesh from file : " + filepath);
 

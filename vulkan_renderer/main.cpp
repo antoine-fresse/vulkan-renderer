@@ -60,7 +60,7 @@ int main()
 
 
 		model nanosuit{ "data/nanosuit.obj", renderer, 3.0f };
-		model sponza{ "data/sponza.obj", renderer };
+		model sponza{ "data/sponza.obj", renderer, 1.0f };
 
 		camera cam(renderer);
 		
@@ -70,9 +70,6 @@ int main()
 		vk::Device device = renderer.device();
 		auto swapchain_images = renderer.swapchain_images();
 
-		vk::ClearColorValue clear_color[] = { { std::array<float, 4>{1.0f, 0.0f, 1.0f, 0.0f} },
-												{ std::array<float, 4>{1.0f, 0.0f, 1.0f, 0.0f} },
-												{ std::array<float, 4>{1.0f, 0.0f, 1.0f, 0.0f} } };
 
 		vk::ImageSubresourceRange img_subresource_range{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 };
 
@@ -164,7 +161,7 @@ int main()
 			cmd.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::DependencyFlags{}, 0, nullptr, 0, nullptr, 1, &barrier_present_to_draw);
 
 			
-			vk::ClearValue clear_value[] { clear_color[i], vk::ClearDepthStencilValue{ 1.0f, 0 } };
+			vk::ClearValue clear_value[]{ vk::ClearColorValue{ std::array<float, 4>{1.0f, 0.0f, 1.0f, 0.0f}}, vk::ClearDepthStencilValue{ 1.0f, 0 } };
 			vk::RenderPassBeginInfo render_pass_bi{ render_pass, framebuffers[i], vk::Rect2D{ { 0,0 },{ 800, 600 } }, 2, clear_value };
 
 			cmd.beginRenderPass(render_pass_bi, vk::SubpassContents::eInline);
