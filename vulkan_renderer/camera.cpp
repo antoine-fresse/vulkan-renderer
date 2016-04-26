@@ -91,3 +91,22 @@ bool camera::cull_sphere(std::pair<glm::vec3, float> bsphere) const
 
 	return false;
 }
+
+bool camera::cull_point(glm::vec3 pt) const
+{
+	glm::vec3 v = pt - _camera_position;
+
+	float pcz = glm::dot(v, _view_vector);
+	if (pcz > _far || pcz < _near) return true;
+
+	float pcy = glm::dot(v, _up_vector);
+	float aux = pcz*_tan_angle;
+	if (pcy > aux || pcy < -aux) return true;
+
+	float pcx = glm::dot(v, _right_vector);
+	aux = aux * _ratio;
+
+	if (pcx > aux || pcx < -aux) return true;
+
+	return false;
+}

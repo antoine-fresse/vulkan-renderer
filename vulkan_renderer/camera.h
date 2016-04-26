@@ -62,6 +62,8 @@ public:
 	vk::DescriptorSet descriptor_set() const;
 
 	bool cull_sphere(std::pair<glm::vec3, float> bsphere) const;
+	bool cull_point(glm::vec3 pt) const;
+
 private:
 	renderer& _renderer;
 
