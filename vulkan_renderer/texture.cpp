@@ -108,7 +108,7 @@ texture::texture(const description& desc, renderer& renderer) : _renderer(render
 		{desc.size.width(), desc.size.height(), 1 },
 		1,
 		1,
-		vk::SampleCountFlagBits::e1,
+		desc.samples,
 		vk::ImageTiling::eOptimal,
 		desc.usage,
 		vk::SharingMode::eExclusive,

@@ -19,6 +19,7 @@ public:
 		vk::Rect2D scissor;
 		std::vector<std::vector<vk::DescriptorSetLayoutBinding>> descriptor_set_layouts_description;
 		std::vector<uint32_t> descriptor_sets_pool_sizes;
+		vk::SampleCountFlagBits samples;
 	};
 
 	pipeline(renderer& renderer, vk::RenderPass render_pass, const description& description);

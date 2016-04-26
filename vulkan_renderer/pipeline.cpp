@@ -21,7 +21,7 @@ pipeline::pipeline(renderer& renderer, vk::RenderPass render_pass, const descrip
 
 	vk::PipelineViewportStateCreateInfo viewport_state_create_info{ {}, 1, &description.viewport, 1, &description.scissor };
 	vk::PipelineRasterizationStateCreateInfo rasterization_state_create_info{ {}, VK_FALSE, VK_FALSE, vk::PolygonMode::eFill, vk::CullModeFlagBits::eBack, vk::FrontFace::eCounterClockwise, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f };
-	vk::PipelineMultisampleStateCreateInfo multisample_state_create_info{ {}, vk::SampleCountFlagBits::e1, VK_FALSE, 1.0f, nullptr, VK_FALSE, VK_FALSE };
+	vk::PipelineMultisampleStateCreateInfo multisample_state_create_info{ {}, description.samples, VK_FALSE, 0.0f, nullptr, VK_FALSE, VK_FALSE };
 	vk::PipelineColorBlendAttachmentState color_blend_attachment_state{ VK_FALSE, vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd, vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd, vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
 	vk::PipelineColorBlendStateCreateInfo color_blend_state_create_info{ {}, VK_FALSE, vk::LogicOp::eCopy, 1, &color_blend_attachment_state,{ 0.0f,0.0f,0.0f,0.0f } };
 

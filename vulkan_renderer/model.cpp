@@ -4,6 +4,7 @@
 
 #include "renderer.h"
 #include "pipeline.h"
+#include "camera.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>           // Output data structure
@@ -80,11 +81,21 @@ void model::load_model(const std::string& filepath, float scale)
 		if ((i_mesh->mPrimitiveTypes & aiPrimitiveType_TRIANGLE) == 0) continue;
 
 		uint32_t current_mesh_vertex_offset = vertices.size();
+
+		const float fmax = std::numeric_limits<float>::max();
+		const float fmin = std::numeric_limits<float>::min();
+
+		std::pair<glm::vec3, glm::vec3> bbox(glm::vec3(fmax, fmax, fmax), glm::vec3(fmin, fmin, fmin));
+		
 		for (uint32_t k = 0; k < i_mesh->mNumVertices; ++k)
 		{
 			vertex vert;
 			memcpy(&vert.position, &i_mesh->mVertices[k], sizeof(glm::vec3));
 			vert.position *= scale;
+
+			bbox.first = glm::min(vert.position, bbox.first);
+			bbox.second = glm::max(vert.position, bbox.second);
+
 			memcpy(&vert.normal, &i_mesh->mNormals[k], sizeof(glm::vec3));
 			memcpy(&vert.tangent, &i_mesh->mTangents[k], sizeof(glm::vec3));
 			memcpy(&vert.uv, &i_mesh->mTextureCoords[0][k], sizeof(glm::vec2));
@@ -98,8 +109,10 @@ void model::load_model(const std::string& filepath, float scale)
 			indices.push_back(i_mesh->mFaces[k].mIndices[1]);
 			indices.push_back(i_mesh->mFaces[k].mIndices[2]);
 		}
+		
+		std::pair<glm::vec3, float> bsphere((bbox.first + bbox.second)*0.5f, glm::distance(bbox.first, bbox.second)/2 );
 
-		_meshes.emplace_back(current_mesh_vertex_offset*sizeof(vertex), current_mesh_index_offset*sizeof(uint32_t), i_mesh->mNumFaces * 3, material_assoc[i_mesh->mMaterialIndex]);
+		_meshes.emplace_back(current_mesh_vertex_offset*sizeof(vertex), current_mesh_index_offset*sizeof(uint32_t), i_mesh->mNumFaces * 3, material_assoc[i_mesh->mMaterialIndex], bsphere, bbox);
 	}
 
 	vk::Device device = _renderer.device();
@@ -129,7 +142,7 @@ void model::load_model(const std::string& filepath, float scale)
 	uint32_t vertex_buffer_global_offset = index_count*sizeof(uint32_t);
 
 	for (auto& m : _meshes)
-		m.vertex_buffer_offset(m.vertex_buffer_offset() + vertex_buffer_global_offset);
+		m.vertex_buffer_offset += vertex_buffer_global_offset;
 
 	// Indices
 	memcpy(dst, indices.data(), index_count*sizeof(uint32_t));
@@ -163,15 +176,17 @@ std::vector<vk::VertexInputAttributeDescription> model::attribute_descriptions(u
 	return attribute_description;
 }
 
-void model::draw(const vk::CommandBuffer& cmd, pipeline& pipeline, uint32_t bind_id) const
+void model::draw(const vk::CommandBuffer& cmd, pipeline& pipeline, const camera& camera, uint32_t bind_id) const
 {
 	for(auto& m : _meshes)
 	{
-		vk::DescriptorSet set = *_materials[m.material_index()].textures_set;
+		if (camera.cull_sphere(m.bounding_sphere)) continue;
+
+		vk::DescriptorSet set = *_materials[m.material_index].textures_set;
 		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.pipeline_layout(), 2, 1, &set, 0, nullptr);
-		cmd.bindVertexBuffer(bind_id, _buffer, m.vertex_buffer_offset());
-		cmd.bindIndexBuffer(_buffer, m.index_buffer_offset(), vk::IndexType::eUint32);
-		cmd.drawIndexed(m.index_count(), 1, 0, 0, 0);
+		cmd.bindVertexBuffer(bind_id, _buffer, m.vertex_buffer_offset);
+		cmd.bindIndexBuffer(_buffer, m.index_buffer_offset, vk::IndexType::eUint32);
+		cmd.drawIndexed(m.index_count, 1, 0, 0, 0);
 	}
 }
 

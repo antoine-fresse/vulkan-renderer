@@ -60,6 +60,8 @@ public:
 	void attach(pipeline& pipeline, uint32_t set_index);
 
 	vk::DescriptorSet descriptor_set() const;
+
+	bool cull_sphere(std::pair<glm::vec3, float> bsphere) const;
 private:
 	renderer& _renderer;
 
@@ -67,8 +69,19 @@ private:
 
 	void recompute_cache()
 	{
+		_projection = glm::perspective(_angle, _ratio, _near, _far);
+		_view = glm::lookAt(_camera_position, _camera_position+_view_vector, _up_vector);
+
+		_right_vector = glm::cross(_view_vector, _up_vector);
+		_up_vector = glm::cross(_right_vector, _view_vector);
+
 		_cached_vpc = _clip * _projection * _view; 
 		_dirty = false;
+
+		float hang = _angle / 2;
+		_tan_angle = glm::tan(hang);
+		_sphere_factor_y = 1.0f / glm::cos(hang);
+		_sphere_factor_x = 1.0f / glm::cos(glm::atan(_tan_angle * _ratio));
 	};
 
 	glm::mat4 _cached_vpc;
@@ -77,7 +90,24 @@ private:
 	glm::mat4 _projection;
 	glm::mat4 _view;
 
+	// Proj
+	float _near, _far;
+	float _angle;
+	float _ratio;
+
+	// View
+	glm::vec3 _view_vector; // Z
+	glm::vec3 _up_vector; // Y
+	glm::vec3 _right_vector; // X
+	glm::vec3 _camera_position;
+
 	single_ubo<glm::mat4, false> _ubo;
 
 	std::shared_ptr<managed_descriptor_set> _descriptor_set = nullptr;
+
+	// Culling Info
+	glm::vec3 _cam_x, _cam_y, _cam_z;
+	float _sphere_factor_x, _sphere_factor_y;
+	float _tan_angle;
+
 };

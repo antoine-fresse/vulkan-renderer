@@ -6,6 +6,7 @@
 #include <memory>
 #include <chrono>
 
+class camera;
 class pipeline;
 class renderer;
 class managed_descriptor_set;
@@ -22,7 +23,7 @@ public:
 
 	vk::DescriptorBufferInfo descriptor_buffer_info() const { return vk::DescriptorBufferInfo{ _buffer, _uniform_buffer_offset, sizeof(uniform_object) }; }
 
-	void draw(const vk::CommandBuffer& cmd, pipeline& pipeline, uint32_t bind_id = 0) const;
+	void draw(const vk::CommandBuffer& cmd, pipeline& pipeline, const camera& camera, uint32_t bind_id = 0) const;
 	
 	void attach_textures(pipeline& pipeline, uint32_t set_index);
 	void update(double dt);
@@ -51,29 +52,24 @@ private:
 	class mesh
 	{
 	public:
-		mesh(vk::DeviceSize vertex_buffer_offset, vk::DeviceSize index_buffer_offset, vk::DeviceSize index_count, uint32_t material_index)
-			: _vertex_buffer_offset(vertex_buffer_offset),
-			  _index_buffer_offset(index_buffer_offset),
-			  _index_count(index_count),
-			  _material_index(material_index)
+		
+
+		mesh(vk::DeviceSize vertex_buffer_offset, vk::DeviceSize index_buffer_offset, vk::DeviceSize index_count, uint32_t material_index, const std::pair<glm::vec3, float>& bounding_sphere, const std::pair<glm::vec3, glm::vec3>& bounding_box)
+			: vertex_buffer_offset(vertex_buffer_offset),
+			  index_buffer_offset(index_buffer_offset),
+			  index_count(index_count),
+			  material_index(material_index),
+			  bounding_sphere(bounding_sphere),
+			  bounding_box(bounding_box)
 		{
 		}
+		vk::DeviceSize vertex_buffer_offset;
+		vk::DeviceSize index_buffer_offset;
+		vk::DeviceSize index_count;
+		uint32_t material_index;
 
-		vk::DeviceSize vertex_buffer_offset() const { return _vertex_buffer_offset; }
-		vk::DeviceSize index_buffer_offset() const { return _index_buffer_offset; }
-		vk::DeviceSize index_count() const { return _index_count; }
-		uint32_t material_index() const { return _material_index; }
-
-		void vertex_buffer_offset(vk::DeviceSize val) { _vertex_buffer_offset = val; }
-		void index_buffer_offset(vk::DeviceSize val) { _index_buffer_offset = val; }
-		void index_count(vk::DeviceSize val) { _index_count = val; }
-
-
-	private:
-		vk::DeviceSize _vertex_buffer_offset;
-		vk::DeviceSize _index_buffer_offset;
-		vk::DeviceSize _index_count;
-		uint32_t _material_index;
+		std::pair<glm::vec3, float> bounding_sphere;
+		std::pair<glm::vec3, glm::vec3> bounding_box;
 	};
 
 	struct uniform_object

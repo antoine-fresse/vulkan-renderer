@@ -10,14 +10,15 @@ public:
 
 	struct description
 	{
-		description(vk::Format format, const vk::Extent2D& size, vk::ImageLayout layout, const vk::ImageUsageFlags& usage, const vk::ImageAspectFlags& view_mask, vk::MemoryPropertyFlagBits memory_flags, const vk::AccessFlags& access_flags)
+		description(vk::Format format, const vk::Extent2D& size, vk::ImageLayout layout, const vk::ImageUsageFlags& usage, const vk::ImageAspectFlags& view_mask, vk::MemoryPropertyFlagBits memory_flags, const vk::AccessFlags& access_flags, vk::SampleCountFlagBits samples= vk::SampleCountFlagBits::e1)
 			: format(format),
 			size(size),
 			layout(layout),
 			usage(usage),
 			view_mask(view_mask),
 			memory_flags(memory_flags),
-			access_flags(access_flags)
+			access_flags(access_flags),
+			samples(samples)
 		{
 		}
 		vk::Format format;
@@ -27,8 +28,7 @@ public:
 		vk::ImageAspectFlags view_mask;
 		vk::MemoryPropertyFlagBits memory_flags;
 		vk::AccessFlags access_flags;
-
-		
+		vk::SampleCountFlagBits samples;
 	};
 
 	texture(const std::string& filepath, renderer& renderer);

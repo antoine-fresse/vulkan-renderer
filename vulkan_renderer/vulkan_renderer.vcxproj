@@ -139,6 +139,7 @@
     <ClInclude Include="model.h" />
     <ClInclude Include="pipeline.h" />
     <ClInclude Include="platform.h" />
+    <ClInclude Include="render_pass.h" />
     <ClInclude Include="shared.h" />
     <ClInclude Include="stb\stb_image.h" />
     <ClInclude Include="texture.h" />
@@ -154,6 +155,7 @@
     <ClCompile Include="model.cpp" />
     <ClCompile Include="pipeline.cpp" />
     <ClCompile Include="renderer.cpp" />
+    <ClCompile Include="render_pass.cpp" />
     <ClCompile Include="texture.cpp" />
     <ClCompile Include="texture_manager.cpp" />
   </ItemGroup>

@@ -62,3 +62,29 @@ vk::DescriptorSet camera::descriptor_set() const
 {
 	return *_descriptor_set;
 }
+
+bool camera::cull_sphere(std::pair<glm::vec3, float> bsphere) const
+{
+	glm::vec3 v = bsphere.first - _camera_position;
+
+	float radius = bsphere.second;
+
+	float az = glm::dot(v, -_view_vector);
+	if (az > _far + radius || az < _near - radius)
+		return true;
+
+	float ay = glm::dot(v, _up_vector);
+	float d = _sphere_factor_y*radius;
+	az *= _tan_angle;
+
+	if (ay > az + d || ay < -az - d) 
+		return true;
+
+	float ax = glm::dot(v, _right_vector);
+	az *= _ratio;
+	d = _sphere_factor_x * radius;
+	if (ax > az + d || ax < -az - d)
+		return true;
+
+	return false;
+}
