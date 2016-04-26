@@ -12,8 +12,15 @@ camera::camera(renderer& renderer) : _renderer(renderer), _ubo(renderer, vk::Buf
 	                  	0.0f, -1.0f, 0.0f, 0.0f,
 	                  	0.0f, 0.0f, 0.5f, 0.0f,
 	                  	0.0f, 0.0f, 0.5f, 1.0f);
-	_projection = glm::perspective(glm::radians(74.0f), 800.0f/600.0f, 0.1f, 10000.0f);
-	_view = glm::lookAt(glm::vec3(-20, 30, -30), glm::vec3(0,30,0), glm::vec3(0, 1, 0));
+
+
+	_camera_position = glm::vec3(-20, 30, -30);
+	_view_vector = glm::normalize(glm::vec3(0, 30, 0) - _camera_position);
+	_ratio = 800.0f / 600.0f;
+	_near = 0.1f;
+	_far = 1000.0f;
+	_angle = glm::radians(74.0f);
+	_up_vector = glm::vec3(0, 1, 0);
 
 	recompute_cache();
 	_ubo.update(_cached_vpc);
@@ -26,25 +33,21 @@ vk::DescriptorBufferInfo camera::descriptor_buffer_info() const
 
 void camera::update(double dt, const input_state& inputs)
 {
-	glm::vec4 v(0,0,0,0);
+	glm::vec2 v(0,0);
 	if (inputs.up)
-		v.z += 1.0f;
-	if (inputs.down)
-		v.z -= 1.0f;
-	if (inputs.right)
-		v.x -= 1.0f;
-	if (inputs.left)
 		v.x += 1.0f;
+	if (inputs.down)
+		v.x -= 1.0f;
+	if (inputs.right)
+		v.y += 1.0f;
+	if (inputs.left)
+		v.y -= 1.0f;
 	
 	if (glm::length(v) == 0.0) return;
-	v.w = 1.0f;
 	
-	v = v*_view;
+	v = glm::normalize(v)*100.0f*(float)dt;
 
-	glm::vec3 dir(v.x, v.y, v.z);
-	dir = glm::normalize(dir);
-	
-	_view = glm::translate(_view, dir*(float)dt*100.0f);
+	_camera_position += _view_vector*v.x + _right_vector*v.y;
 
 	recompute_cache();
 	_ubo.update(_cached_vpc);
@@ -69,7 +72,7 @@ bool camera::cull_sphere(std::pair<glm::vec3, float> bsphere) const
 
 	float radius = bsphere.second;
 
-	float az = glm::dot(v, -_view_vector);
+	float az = glm::dot(v, _view_vector);
 	if (az > _far + radius || az < _near - radius)
 		return true;
 
