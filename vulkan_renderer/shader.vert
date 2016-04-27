@@ -26,7 +26,7 @@ layout (location = 2) out vec3 outFragPos;
 void main() 
 {
 	outUV = uv;
-	outNormal = normal;
+	outNormal = vec3(ubo_model.mat * vec4(normal, 0.0));
 	vec4 world_pos = ubo_model.mat * vec4(position, 1.0);
 	outFragPos = vec3(world_pos);
 	gl_Position = ubo_view.mat * world_pos;
