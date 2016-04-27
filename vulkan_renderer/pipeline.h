@@ -20,6 +20,7 @@ public:
 		std::vector<std::vector<vk::DescriptorSetLayoutBinding>> descriptor_set_layouts_description;
 		std::vector<uint32_t> descriptor_sets_pool_sizes;
 		vk::SampleCountFlagBits samples;
+		std::vector<vk::PushConstantRange> push_constants;
 	};
 
 	pipeline(renderer& renderer, vk::RenderPass render_pass, const description& description);

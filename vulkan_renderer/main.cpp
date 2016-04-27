@@ -95,11 +95,13 @@ int main()
 		pipeline_desc.descriptor_set_layouts_description = {
 			{ vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr } },
 			{ vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr } },
-			{ vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr } },
+			{	vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr },
+				vk::DescriptorSetLayoutBinding{ 1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr } ,
+				vk::DescriptorSetLayoutBinding{ 2, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr } },
 		};
 		pipeline_desc.descriptor_sets_pool_sizes = { 1, 64, 128 };
 		pipeline_desc.samples = multisampling_count;
-
+		pipeline_desc.push_constants.push_back({ vk::ShaderStageFlagBits::eFragment, 0, sizeof(model::material::info) });
 
 		pipeline forward_rendering_pipeline{ renderer, render_pass, pipeline_desc };
 		//forward_rendering_pipeline.create_depth_buffer(texture::description{ renderer.depth_format(),{ 800,600 }, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eTransferSrc, vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::AccessFlagBits::eDepthStencilAttachmentWrite });

@@ -2,6 +2,7 @@
 #include "vulkan_include.h"
 #include "math_include.h"
 #include "texture.h"
+#include "ubo.h"
 
 #include <memory>
 #include <chrono>
@@ -28,6 +29,22 @@ public:
 	void attach_textures(pipeline& pipeline, uint32_t set_index);
 	void update(double dt);
 
+	struct material
+	{
+		std::shared_ptr<texture> diffuse_texture;
+		std::shared_ptr<texture> normal_texture;
+		std::shared_ptr<texture> specular_texture;
+		std::shared_ptr<managed_descriptor_set> textures_set;
+		struct info
+		{
+			glm::vec4 ambient_color;
+			glm::vec4 diffuse_color;
+			glm::vec4 specular_color;
+			float specular_intensity;
+			float normal_map_intensity;
+		} info;
+	};
+
 private:
 	
 	struct vertex
@@ -39,13 +56,9 @@ private:
 	};
 	static_assert(sizeof(vertex) == 11 * sizeof(float), "vertex is not packed");
 
-	struct material
-	{
-		std::shared_ptr<texture> diffuse_texture;
-		std::shared_ptr<texture> normal_texture;
-		std::shared_ptr<texture> specular_texture;
-		std::shared_ptr<managed_descriptor_set> textures_set;
-	};
+	
+
+	
 
 	std::vector<material> _materials;
 

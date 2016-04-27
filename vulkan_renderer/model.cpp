@@ -62,15 +62,68 @@ void model::load_model(const std::string& filepath, float scale)
 
 		int success = 3;
 
-		
-		if (mat->GetTexture(aiTextureType_DIFFUSE, 0, &diffuse_path) != AI_SUCCESS) --success;
-		if (mat->GetTexture(aiTextureType_NORMALS, 0, &normal_path) != AI_SUCCESS) --success;
-		if (mat->GetTexture(aiTextureType_SPECULAR, 0, &spec_path) != AI_SUCCESS) --success;
-		
-
 		material_assoc[i] = _materials.size();
-		//_materials.push_back({_renderer.tex_manager().find_texture(diffuse_path.C_Str()), _renderer.tex_manager().find_texture(normal_path.C_Str()) ,_renderer.tex_manager().find_texture(spec_path.C_Str()) , VK_NULL_HANDLE});
-		_materials.push_back({_renderer.tex_manager().find_texture(diffuse_path.C_Str()), nullptr , nullptr , VK_NULL_HANDLE});
+
+		_materials.emplace_back();
+
+		auto& material = _materials.back();
+		material.info.normal_map_intensity = -1.0f;
+		material.info.specular_intensity = -1.0f;
+
+		if (mat->GetTexture(aiTextureType_DIFFUSE, 0, &diffuse_path) == AI_SUCCESS)
+		{
+			material.diffuse_texture = _renderer.tex_manager().find_texture(diffuse_path.C_Str());
+			material.info.diffuse_color.a = 1.0f;
+		}
+		else
+		{
+			material.diffuse_texture = _renderer.tex_manager().find_texture("missing_texture.png");
+			material.info.diffuse_color.a = -1.0f;
+		}
+		if (mat->GetTexture(aiTextureType_NORMALS, 0, &normal_path) == AI_SUCCESS)
+		{
+			material.normal_texture = _renderer.tex_manager().find_texture(normal_path.C_Str());
+			material.info.normal_map_intensity = 1.0f;
+		}
+		else
+		{
+			material.normal_texture = _renderer.tex_manager().find_texture("missing_texture.png");
+		}
+		if (mat->GetTexture(aiTextureType_SPECULAR, 0, &spec_path) == AI_SUCCESS)
+		{
+			material.specular_texture = _renderer.tex_manager().find_texture(spec_path.C_Str());
+			mat->Get(AI_MATKEY_SHININESS, material.info.specular_intensity);
+		}
+		else
+		{
+			material.specular_texture = _renderer.tex_manager().find_texture("missing_texture.png");
+		}
+
+		aiColor3D color(1.0f,1.0f,1.0f);
+		if(mat->Get(AI_MATKEY_COLOR_AMBIENT, color) == AI_SUCCESS)
+		{
+			material.info.ambient_color.r = color.r;
+			material.info.ambient_color.g = color.g;
+			material.info.ambient_color.b = color.b;
+		}
+		
+		color = { 1.0f, 1.0f, 1.0f };
+		if (mat->Get(AI_MATKEY_COLOR_DIFFUSE, color) == AI_SUCCESS)
+		{
+			material.info.diffuse_color.r = color.r;
+			material.info.diffuse_color.g = color.g;
+			material.info.diffuse_color.b = color.b;
+		}
+
+		color = { 1.0f, 1.0f, 1.0f };
+		if (mat->Get(AI_MATKEY_COLOR_SPECULAR, color) == AI_SUCCESS)
+		{
+			material.info.specular_color.r = color.r;
+			material.info.specular_color.g = color.g;
+			material.info.specular_color.b = color.b;
+			material.info.specular_color.a = 1.0f;
+		}
+
 	}
 	
 
@@ -154,6 +207,8 @@ void model::load_model(const std::string& filepath, float scale)
 	device.unmapMemory(_memory);
 
 	device.bindBufferMemory(_buffer, _memory, 0);
+
+	std::sort(_meshes.begin(), _meshes.end(), [](const mesh& m1, const mesh& m2) { return m1.material_index < m2.material_index; });
 }
 
 vk::VertexInputBindingDescription model::binding_description(uint32_t bind_id)
@@ -178,12 +233,19 @@ std::vector<vk::VertexInputAttributeDescription> model::attribute_descriptions(u
 
 void model::draw(const vk::CommandBuffer& cmd, pipeline& pipeline, const camera& camera, uint32_t bind_id) const
 {
+	int last_m_index = -1;
 	for(auto& m : _meshes)
 	{
 		if (camera.cull_sphere(m.bounding_sphere)) continue;
 
-		vk::DescriptorSet set = *_materials[m.material_index].textures_set;
-		cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.pipeline_layout(), 2, 1, &set, 0, nullptr);
+		if (m.material_index != last_m_index)
+		{
+			vk::DescriptorSet set = *_materials[m.material_index].textures_set;
+			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.pipeline_layout(), 2, 1, &set, 0, nullptr);
+			cmd.pushConstant(pipeline.pipeline_layout(), vk::ShaderStageFlagBits::eFragment, 0, _materials[m.material_index].info);
+			last_m_index = m.material_index;
+		}
+
 		cmd.bindVertexBuffer(bind_id, _buffer, m.vertex_buffer_offset);
 		cmd.bindIndexBuffer(_buffer, m.index_buffer_offset, vk::IndexType::eUint32);
 		cmd.drawIndexed(m.index_count, 1, 0, 0, 0);
@@ -195,12 +257,28 @@ void model::attach_textures(pipeline& pipeline, uint32_t set_index)
 	for(auto& mat : _materials)
 	{
 		mat.textures_set = pipeline.allocate(set_index);
-		std::vector<vk::DescriptorImageInfo> image_info{
-			mat.diffuse_texture->descriptor_image_info(),
-			//mat.normal_texture->descriptor_image_info(),
-			//mat.specular_texture->descriptor_image_info(),
-		};
-		vk::WriteDescriptorSet write{ *mat.textures_set, 0, 0, (uint32_t)image_info.size(), vk::DescriptorType::eCombinedImageSampler, image_info.data(), nullptr, nullptr };
-		_renderer.device().updateDescriptorSets(1, &write, 0, nullptr);
+		std::vector<vk::DescriptorImageInfo> image_info;
+		image_info.reserve(3);
+
+		std::vector<vk::WriteDescriptorSet> writes;
+		if (mat.diffuse_texture)
+		{
+			image_info.push_back(mat.diffuse_texture->descriptor_image_info());
+			writes.push_back(vk::WriteDescriptorSet{ *mat.textures_set, 0, 0, 1, vk::DescriptorType::eCombinedImageSampler, &image_info.back(), nullptr, nullptr });
+		}
+			
+		if (mat.normal_texture)
+		{
+			image_info.push_back(mat.normal_texture->descriptor_image_info());
+			writes.push_back(vk::WriteDescriptorSet{ *mat.textures_set, 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &image_info.back(), nullptr, nullptr });
+
+		}
+		if (mat.specular_texture)
+		{
+			image_info.push_back(mat.specular_texture->descriptor_image_info());
+			writes.push_back(vk::WriteDescriptorSet{ *mat.textures_set, 2, 0, 1, vk::DescriptorType::eCombinedImageSampler, &image_info.back(), nullptr, nullptr });
+		}
+
+		_renderer.device().updateDescriptorSets((uint32_t)writes.size(), writes.data(), 0, nullptr);
 	}
 }

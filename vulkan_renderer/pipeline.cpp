@@ -4,6 +4,7 @@
 
 #include "renderer.h"
 #include <set>
+#include "model.h"
 
 
 pipeline::pipeline(renderer& renderer, vk::RenderPass render_pass, const description& description) : _renderer(renderer), _render_pass(render_pass)
@@ -28,7 +29,7 @@ pipeline::pipeline(renderer& renderer, vk::RenderPass render_pass, const descrip
 	for(auto& layout : description.descriptor_set_layouts_description)
 		_descriptor_set_layouts.push_back(_renderer.device().createDescriptorSetLayout(vk::DescriptorSetLayoutCreateInfo{ {}, (uint32_t)layout.size(), layout.data() }));
 
-	vk::PipelineLayoutCreateInfo pipeline_layout_create_info{ {}, (uint32_t)_descriptor_set_layouts.size(), _descriptor_set_layouts.data(), 0, nullptr };
+	vk::PipelineLayoutCreateInfo pipeline_layout_create_info{ {}, (uint32_t)_descriptor_set_layouts.size(), _descriptor_set_layouts.data(), (uint32_t)description.push_constants.size(), description.push_constants.data() };
 
 	_pipeline_layout = _renderer.device().createPipelineLayout(pipeline_layout_create_info);
 
