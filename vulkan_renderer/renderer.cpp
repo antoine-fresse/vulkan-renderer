@@ -450,22 +450,22 @@ void renderer::recreate_swapchain(uint32_t buffering, uint32_t width, uint32_t h
 	_swapchain_format = format.format();
 }
 
-void renderer::render(vk::Fence fence)
+bool renderer::render(vk::Fence fence)
 {
 	if (_need_setup)
 		flush_setup();
 
-
 	auto result = _device.acquireNextImageKHR(_swapchain, UINT64_MAX, _image_available_semaphore, VK_NULL_HANDLE, &_current_image_index);
-	//if (result == vk::Result::eSuboptimalKHR || result == vk::Result::eErrorOutOfDateKHR)
+	// if (result == vk::Result::eSuboptimalKHR || result == vk::Result::eSuccess)
+	{
+		vk::PipelineStageFlags pipeline_stage_flags{ vk::PipelineStageFlagBits::eTransfer };
+		vk::SubmitInfo submit_info{ 1, &_image_available_semaphore, &pipeline_stage_flags, 1, &_render_command_buffers[_current_image_index], 1, &_rendering_finished_semaphore };
+
+		_graphics_queue.submit(submit_info, fence);
+		return true;
+	}
 	//	renderer.window_size_changed();
-
-	vk::PipelineStageFlags pipeline_stage_flags{ vk::PipelineStageFlagBits::eTransfer };
-	vk::SubmitInfo submit_info{ 1, &_image_available_semaphore, &pipeline_stage_flags, 1, &_render_command_buffers[_current_image_index], 1, &_rendering_finished_semaphore };
-
-	
-
-	_graphics_queue.submit(submit_info, fence);
+	return false;
 }
 
 void renderer::present() const

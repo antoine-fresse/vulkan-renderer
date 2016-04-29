@@ -200,6 +200,7 @@ int main()
 
 			cmd.end();
 		}
+		vk::Fence render_fence = device.createFence({});
 		
 		
 		auto last_time = std::chrono::steady_clock::now();
@@ -212,13 +213,28 @@ int main()
 			cam.update(dt.count(), g_input_state);
 			nanosuit.update(dt.count());
 
-			renderer.render();
-			renderer.present();
+			auto render_begin = std::chrono::steady_clock::now();
+			if(renderer.render(render_fence))
+			{
+				device.waitForFence(render_fence, true, UINT64_MAX);
 
-			char title[256];
-			snprintf(title, 256, "frame time : %f ms", dt.count()*1000.0);
-			glfwSetWindowTitle(renderer.window_handle(), title);
-			glfwPollEvents();
+				auto render_end = std::chrono::steady_clock::now();
+				std::chrono::duration<double> render_time = render_end - render_begin;
+
+				device.resetFence(render_fence);
+
+				renderer.present();
+
+				char title[256];
+				snprintf(title, 256, "frame time : %f ms -- render time %f ms", dt.count()*1000.0, render_time.count()*1000.0);
+				glfwSetWindowTitle(renderer.window_handle(), title);
+				glfwPollEvents();
+
+			}
+			
+			
+
+		
 		}
 	}
 	

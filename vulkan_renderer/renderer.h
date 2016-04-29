@@ -36,7 +36,7 @@ public:
 	vk::ShaderModule						load_shader(const std::string& filename) const;
 	uint32_t								find_adequate_memory(vk::MemoryRequirements mem_reqs, vk::MemoryPropertyFlagBits requirements_mask) const;
 
-	void									render(vk::Fence fence = {});
+	bool									render(vk::Fence fence = {});
 	void									present() const;
 	
 	void									push_setup(const vk::ImageMemoryBarrier& barrier);
