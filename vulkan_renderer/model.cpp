@@ -67,23 +67,23 @@ void model::load_model(const std::string& filepath, float scale)
 		_materials.emplace_back();
 
 		auto& material = _materials.back();
-		material.info.normal_map_intensity = -1.0f;
-		material.info.specular_intensity = -1.0f;
+		material.mat_info.normal_map_intensity = -1.0f;
+		material.mat_info.specular_intensity = -1.0f;
 
 		if (mat->GetTexture(aiTextureType_DIFFUSE, 0, &diffuse_path) == AI_SUCCESS)
 		{
 			material.diffuse_texture = _renderer.tex_manager().find_texture(diffuse_path.C_Str());
-			material.info.diffuse_color.a = 1.0f;
+			material.mat_info.diffuse_color.a = 1.0f;
 		}
 		else
 		{
 			material.diffuse_texture = _renderer.tex_manager().find_texture("missing_texture.png");
-			material.info.diffuse_color.a = -1.0f;
+			material.mat_info.diffuse_color.a = -1.0f;
 		}
 		if (mat->GetTexture(aiTextureType_NORMALS, 0, &normal_path) == AI_SUCCESS)
 		{
 			material.normal_texture = _renderer.tex_manager().find_texture(normal_path.C_Str());
-			material.info.normal_map_intensity = 1.0f;
+			material.mat_info.normal_map_intensity = 1.0f;
 		}
 		else
 		{
@@ -92,7 +92,7 @@ void model::load_model(const std::string& filepath, float scale)
 		if (mat->GetTexture(aiTextureType_SPECULAR, 0, &spec_path) == AI_SUCCESS)
 		{
 			material.specular_texture = _renderer.tex_manager().find_texture(spec_path.C_Str());
-			mat->Get(AI_MATKEY_SHININESS, material.info.specular_intensity);
+			mat->Get(AI_MATKEY_SHININESS, material.mat_info.specular_intensity);
 		}
 		else
 		{
@@ -102,26 +102,26 @@ void model::load_model(const std::string& filepath, float scale)
 		aiColor3D color(1.0f,1.0f,1.0f);
 		if(mat->Get(AI_MATKEY_COLOR_AMBIENT, color) == AI_SUCCESS)
 		{
-			material.info.ambient_color.r = color.r;
-			material.info.ambient_color.g = color.g;
-			material.info.ambient_color.b = color.b;
+			material.mat_info.ambient_color.r = color.r;
+			material.mat_info.ambient_color.g = color.g;
+			material.mat_info.ambient_color.b = color.b;
 		}
 		
 		color = { 1.0f, 1.0f, 1.0f };
 		if (mat->Get(AI_MATKEY_COLOR_DIFFUSE, color) == AI_SUCCESS)
 		{
-			material.info.diffuse_color.r = color.r;
-			material.info.diffuse_color.g = color.g;
-			material.info.diffuse_color.b = color.b;
+			material.mat_info.diffuse_color.r = color.r;
+			material.mat_info.diffuse_color.g = color.g;
+			material.mat_info.diffuse_color.b = color.b;
 		}
 
 		color = { 1.0f, 1.0f, 1.0f };
 		if (mat->Get(AI_MATKEY_COLOR_SPECULAR, color) == AI_SUCCESS)
 		{
-			material.info.specular_color.r = color.r;
-			material.info.specular_color.g = color.g;
-			material.info.specular_color.b = color.b;
-			material.info.specular_color.a = 1.0f;
+			material.mat_info.specular_color.r = color.r;
+			material.mat_info.specular_color.g = color.g;
+			material.mat_info.specular_color.b = color.b;
+			material.mat_info.specular_color.a = 1.0f;
 		}
 
 	}
@@ -242,7 +242,7 @@ void model::draw(const vk::CommandBuffer& cmd, pipeline& pipeline, const camera&
 		{
 			vk::DescriptorSet set = *_materials[m.material_index].textures_set;
 			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.pipeline_layout(), 2, 1, &set, 0, nullptr);
-			cmd.pushConstant(pipeline.pipeline_layout(), vk::ShaderStageFlagBits::eFragment, 0, _materials[m.material_index].info);
+			cmd.pushConstant(pipeline.pipeline_layout(), vk::ShaderStageFlagBits::eFragment, 0, _materials[m.material_index].mat_info);
 			last_m_index = m.material_index;
 		}
 

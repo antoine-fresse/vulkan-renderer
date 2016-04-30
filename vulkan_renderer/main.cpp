@@ -120,8 +120,8 @@ int main()
 
 			views[i] = device.createImageView(view_create_info);
 			
-			multisampled_color_buffers.push_back(std::make_unique<texture>(texture::description{ renderer.format(),{ SCREEN_WIDTH,SCREEN_HEIGHT }, vk::ImageLayout::eColorAttachmentOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransientAttachment, vk::ImageAspectFlagBits::eColor, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::AccessFlagBits::eColorAttachmentWrite, multisampling_count }, renderer));
-			multisampled_depth_buffers.push_back(std::make_unique<texture>(texture::description{ renderer.depth_format(),{ SCREEN_WIDTH,SCREEN_HEIGHT }, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eTransientAttachment, vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::AccessFlagBits::eDepthStencilAttachmentWrite, multisampling_count }, renderer));
+			multisampled_color_buffers.push_back(std::make_unique<texture>(texture::description{ renderer.format(),{ SCREEN_WIDTH,SCREEN_HEIGHT }, vk::ImageLayout::eColorAttachmentOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransientAttachment, vk::ImageAspectFlagBits::eColor, vk::AccessFlagBits::eColorAttachmentWrite, multisampling_count }, renderer));
+			multisampled_depth_buffers.push_back(std::make_unique<texture>(texture::description{ renderer.depth_format(),{ SCREEN_WIDTH,SCREEN_HEIGHT }, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eTransientAttachment, vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil, vk::AccessFlagBits::eDepthStencilAttachmentWrite, multisampling_count }, renderer));
 
 			std::vector<vk::ImageView> fb_views { multisampled_color_buffers[i]->image_view(), multisampled_depth_buffers[i]->image_view(), views[i] };
 			vk::FramebufferCreateInfo framebuffer_create_info{ {}, render_pass, (uint32_t)fb_views.size(), fb_views.data(), SCREEN_WIDTH, SCREEN_HEIGHT, 1 };

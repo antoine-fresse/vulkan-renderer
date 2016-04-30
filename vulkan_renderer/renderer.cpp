@@ -483,25 +483,14 @@ void renderer::present() const
 	_present_queue.presentKHR(vk::PresentInfoKHR{ 1, &_rendering_finished_semaphore, 1, &_swapchain, &_current_image_index, nullptr});
 }
 
-void renderer::push_setup(const vk::ImageMemoryBarrier& barrier)
-{
-	if(!_need_setup)
-	{
-		_setup_command_buffer.begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit, nullptr });
-		_need_setup = true;
-	}
-	_setup_command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTopOfPipe, {}, 0, nullptr, 0, nullptr, 1, &barrier);
-
-}
-
-void renderer::push_setup(const vk::BufferMemoryBarrier& barrier)
+vk::CommandBuffer renderer::setup_cmd_buffer()
 {
 	if (!_need_setup)
 	{
 		_setup_command_buffer.begin(vk::CommandBufferBeginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit, nullptr });
 		_need_setup = true;
 	}
-	_setup_command_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTopOfPipe, {}, 0, nullptr, 1, &barrier, 0, nullptr);
+	return _setup_command_buffer;
 }
 
 void renderer::flush_setup()

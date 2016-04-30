@@ -42,7 +42,7 @@ public:
 			glm::vec4 specular_color;
 			float specular_intensity;
 			float normal_map_intensity;
-		} info;
+		} mat_info;
 	};
 
 private:

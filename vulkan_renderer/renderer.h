@@ -38,10 +38,9 @@ public:
 
 	double									render(vk::Fence fence = {});
 	void									present() const;
-	
-	void									push_setup(const vk::ImageMemoryBarrier& barrier);
-	void									push_setup(const vk::BufferMemoryBarrier& barrier);
 
+	vk::CommandBuffer						setup_cmd_buffer();
+	
 	void									flush_setup();
 
 	vk::DeviceSize							ubo_aligned_size(vk::DeviceSize size) const;

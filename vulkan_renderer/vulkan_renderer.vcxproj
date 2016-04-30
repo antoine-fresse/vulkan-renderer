@@ -146,6 +146,7 @@
     <ClInclude Include="texture_manager.h" />
     <ClInclude Include="ubo.h" />
     <ClInclude Include="vk_cpp.hpp" />
+    <ClInclude Include="vulkan_helpers.h" />
     <ClInclude Include="vulkan_include.h" />
     <ClInclude Include="renderer.h" />
   </ItemGroup>
@@ -158,6 +159,7 @@
     <ClCompile Include="render_pass.cpp" />
     <ClCompile Include="texture.cpp" />
     <ClCompile Include="texture_manager.cpp" />
+    <ClCompile Include="vulkan_helpers.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

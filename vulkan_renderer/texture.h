@@ -10,13 +10,12 @@ public:
 
 	struct description
 	{
-		description(vk::Format format, const vk::Extent2D& size, vk::ImageLayout layout, const vk::ImageUsageFlags& usage, const vk::ImageAspectFlags& view_mask, vk::MemoryPropertyFlagBits memory_flags, const vk::AccessFlags& access_flags, vk::SampleCountFlagBits samples= vk::SampleCountFlagBits::e1)
+		description(vk::Format format, const vk::Extent2D& size, vk::ImageLayout layout, const vk::ImageUsageFlags& usage, const vk::ImageAspectFlags& view_mask, const vk::AccessFlags& access_flags, vk::SampleCountFlagBits samples= vk::SampleCountFlagBits::e1)
 			: format(format),
 			size(size),
 			layout(layout),
 			usage(usage),
 			view_mask(view_mask),
-			memory_flags(memory_flags),
 			access_flags(access_flags),
 			samples(samples)
 		{
@@ -26,7 +25,6 @@ public:
 		vk::ImageLayout layout;
 		vk::ImageUsageFlags usage;
 		vk::ImageAspectFlags view_mask;
-		vk::MemoryPropertyFlagBits memory_flags;
 		vk::AccessFlags access_flags;
 		vk::SampleCountFlagBits samples;
 	};
@@ -48,10 +46,12 @@ public:
 
 
 private:
+
+	void init_image(const description& desc);
 	
 	renderer& _renderer;
 	vk::Image _image;
-	vk::ImageLayout _image_layout;
+	vk::ImageLayout _image_layout = vk::ImageLayout::eUndefined;
 	vk::ImageView _image_view;
 	vk::DeviceMemory _memory;
 	vk::Sampler _sampler;
