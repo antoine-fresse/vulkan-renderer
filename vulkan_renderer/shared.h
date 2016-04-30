@@ -30,3 +30,6 @@ struct input_state
 	bool left;
 	bool right;
 };
+
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600

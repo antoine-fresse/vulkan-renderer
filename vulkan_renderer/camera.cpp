@@ -16,7 +16,7 @@ camera::camera(renderer& renderer) : _renderer(renderer), _ubo(renderer, vk::Buf
 
 	_camera_position = glm::vec3(-20, 30, -30);
 	_view_vector = glm::normalize(glm::vec3(0, 30, 0) - _camera_position);
-	_ratio = 800.0f / 600.0f;
+	_ratio = (float)SCREEN_WIDTH / SCREEN_HEIGHT;
 	_near = 0.1f;
 	_far = 1000.0f;
 	_angle = glm::radians(74.0f);

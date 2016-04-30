@@ -1,3 +1,3 @@
 #pragma once
 
-#define USE_VULKAN_DEBUG_LAYERS 1
+#define USE_VULKAN_DEBUG_LAYERS 0

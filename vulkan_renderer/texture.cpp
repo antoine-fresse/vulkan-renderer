@@ -62,8 +62,7 @@ texture::texture(const std::string& filepath, renderer& renderer): _renderer(ren
 	stbi_image_free(data);
 
 	// Sampler
-
-	vk::SamplerCreateInfo sampler_ci{ {},
+	/*vk::SamplerCreateInfo sampler_ci{ {},
 		vk::Filter::eLinear,
 		vk::Filter::eLinear,
 		vk::SamplerMipmapMode::eLinear,
@@ -80,7 +79,7 @@ texture::texture(const std::string& filepath, renderer& renderer): _renderer(ren
 		vk::BorderColor::eFloatOpaqueWhite,
 		VK_FALSE
 	};
-	_sampler = device.createSampler(sampler_ci);
+	_sampler = device.createSampler(sampler_ci);*/
 
 	vk::ImageViewCreateInfo image_view_ci{
 		{},
@@ -134,12 +133,12 @@ texture::~texture()
 	vk::Device device = _renderer.device();
 
 	device.destroyImageView(_image_view);
-	device.destroySampler(_sampler);
+	//device.destroySampler(_sampler);
 	device.destroyImage(_image);
 	device.freeMemory(_memory);
 }
 
 vk::DescriptorImageInfo texture::descriptor_image_info() const
 {
-	return vk::DescriptorImageInfo{ _sampler, _image_view, _image_layout };
+	return vk::DescriptorImageInfo{ VK_NULL_HANDLE, _image_view, _image_layout };
 }

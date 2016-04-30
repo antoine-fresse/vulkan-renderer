@@ -57,6 +57,7 @@ renderer::renderer(uint32_t width, uint32_t height, uint32_t buffering, const st
 	recreate_swapchain(buffering, _width, _height);
 
 	init_render_command_buffers();
+	_texture_manager.init();
 	_ready = true;
 }
 

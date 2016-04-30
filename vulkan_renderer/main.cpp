@@ -60,7 +60,7 @@ int main()
 
 	//try
 	{
-		renderer renderer{ 800, 600, 3, instance_layers , instance_extensions, device_layers, device_extensions };
+		renderer renderer{ SCREEN_WIDTH, SCREEN_HEIGHT, 3, instance_layers , instance_extensions, device_layers, device_extensions };
 
 		
 		camera cam(renderer);
@@ -90,21 +90,23 @@ int main()
 		pipeline::description pipeline_desc;
 		pipeline_desc.vertex_input_attributes = model::attribute_descriptions(0);
 		pipeline_desc.vertex_input_bindings = model::binding_description(0);
-		pipeline_desc.viewport = vk::Viewport{ 0.0f, 0.0f, 800.0f, 600.0f, 0.0f, 1.0f };
-		pipeline_desc.scissor = vk::Rect2D{ { 0,0 },{ 800, 600 } };
+		pipeline_desc.viewport = vk::Viewport{ 0.0f, 0.0f, SCREEN_WIDTH, SCREEN_HEIGHT, 0.0f, 1.0f };
+		pipeline_desc.scissor = vk::Rect2D{ { 0,0 },{ SCREEN_WIDTH, SCREEN_HEIGHT } };
+
+		const vk::Sampler* default_sampler = &renderer.tex_manager().default_sampler();
 		pipeline_desc.descriptor_set_layouts_description = {
 			{ vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr } },
 			{ vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr } },
-			{	vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr },
-				vk::DescriptorSetLayoutBinding{ 1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr } ,
-				vk::DescriptorSetLayoutBinding{ 2, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr } },
+			{	vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, default_sampler },
+				vk::DescriptorSetLayoutBinding{ 1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, default_sampler } ,
+				vk::DescriptorSetLayoutBinding{ 2, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, default_sampler } },
 		};
 		pipeline_desc.descriptor_sets_pool_sizes = { 1, 64, 128 };
 		pipeline_desc.samples = multisampling_count;
 		pipeline_desc.push_constants.push_back({ vk::ShaderStageFlagBits::eFragment, 0, sizeof(model::material::info) });
 
 		pipeline forward_rendering_pipeline{ renderer, render_pass, pipeline_desc };
-		//forward_rendering_pipeline.create_depth_buffer(texture::description{ renderer.depth_format(),{ 800,600 }, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eTransferSrc, vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::AccessFlagBits::eDepthStencilAttachmentWrite });
+		//forward_rendering_pipeline.create_depth_buffer(texture::description{ renderer.depth_format(),{ 800,SCREEN_HEIGHT }, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eTransferSrc, vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::AccessFlagBits::eDepthStencilAttachmentWrite });
 		//texture* depth_buffer = forward_rendering_pipeline.depth_buffer();
 
 		std::vector<vk::ImageView> views(swapchain_images.size());
@@ -118,11 +120,11 @@ int main()
 
 			views[i] = device.createImageView(view_create_info);
 			
-			multisampled_color_buffers.push_back(std::make_unique<texture>(texture::description{ renderer.format(),{ 800,600 }, vk::ImageLayout::eColorAttachmentOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransientAttachment, vk::ImageAspectFlagBits::eColor, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::AccessFlagBits::eColorAttachmentWrite, multisampling_count }, renderer));
-			multisampled_depth_buffers.push_back(std::make_unique<texture>(texture::description{ renderer.depth_format(),{ 800,600 }, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eTransientAttachment, vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::AccessFlagBits::eDepthStencilAttachmentWrite, multisampling_count }, renderer));
+			multisampled_color_buffers.push_back(std::make_unique<texture>(texture::description{ renderer.format(),{ SCREEN_WIDTH,SCREEN_HEIGHT }, vk::ImageLayout::eColorAttachmentOptimal, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransientAttachment, vk::ImageAspectFlagBits::eColor, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::AccessFlagBits::eColorAttachmentWrite, multisampling_count }, renderer));
+			multisampled_depth_buffers.push_back(std::make_unique<texture>(texture::description{ renderer.depth_format(),{ SCREEN_WIDTH,SCREEN_HEIGHT }, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eTransientAttachment, vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::AccessFlagBits::eDepthStencilAttachmentWrite, multisampling_count }, renderer));
 
 			std::vector<vk::ImageView> fb_views { multisampled_color_buffers[i]->image_view(), multisampled_depth_buffers[i]->image_view(), views[i] };
-			vk::FramebufferCreateInfo framebuffer_create_info{ {}, render_pass, (uint32_t)fb_views.size(), fb_views.data(), 800, 600, 1 };
+			vk::FramebufferCreateInfo framebuffer_create_info{ {}, render_pass, (uint32_t)fb_views.size(), fb_views.data(), SCREEN_WIDTH, SCREEN_HEIGHT, 1 };
 
 			framebuffers[i] = device.createFramebuffer(framebuffer_create_info);
 		}
@@ -174,7 +176,7 @@ int main()
 
 			
 			vk::ClearValue clear_value[]{ vk::ClearColorValue{ std::array<float, 4>{1.0f, 0.0f, 1.0f, 0.0f}}, vk::ClearDepthStencilValue{ 1.0f, 0 } };
-			vk::RenderPassBeginInfo render_pass_bi{ render_pass, framebuffers[i], vk::Rect2D{ { 0,0 },{ 800, 600 } }, 2, clear_value };
+			vk::RenderPassBeginInfo render_pass_bi{ render_pass, framebuffers[i], vk::Rect2D{ { 0,0 },{ SCREEN_WIDTH, SCREEN_HEIGHT } }, 2, clear_value };
 
 			cmd.beginRenderPass(render_pass_bi, vk::SubpassContents::eInline);
 
