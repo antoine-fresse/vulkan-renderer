@@ -9,6 +9,7 @@
 #include <sstream>
 #include <iostream>
 #include <fstream>
+#include <chrono>
 
 PFN_vkCreateDebugReportCallbackEXT fvkCreateDebugReportCallbackEXT = nullptr;
 PFN_vkDestroyDebugReportCallbackEXT fvkDestroyDebugReportCallbackEXT = nullptr;
@@ -427,9 +428,9 @@ void renderer::recreate_swapchain(uint32_t buffering, uint32_t width, uint32_t h
 		transform_flags = surface_capabilities.currentTransform();
 
 
-	auto present_mode = std::find_if(surface_present_modes.begin(), surface_present_modes.end(), [](vk::PresentModeKHR pmode) { return pmode == vk::PresentModeKHR::eMailbox; });
+	auto present_mode = std::find_if(surface_present_modes.begin(), surface_present_modes.end(), [](vk::PresentModeKHR pmode) { return pmode == vk::PresentModeKHR::eFifo; });
 	if (present_mode == surface_present_modes.end())
-		present_mode = std::find_if(surface_present_modes.begin(), surface_present_modes.end(), [](vk::PresentModeKHR pmode) { return pmode == vk::PresentModeKHR::eFifo; });
+		present_mode = std::find_if(surface_present_modes.begin(), surface_present_modes.end(), [](vk::PresentModeKHR pmode) { return pmode == vk::PresentModeKHR::eMailbox; });
 	if (present_mode == surface_present_modes.end())
 		throw std::system_error(vk::Result::eErrorFeatureNotPresent, "Unsupported present mode");
 
@@ -451,7 +452,7 @@ void renderer::recreate_swapchain(uint32_t buffering, uint32_t width, uint32_t h
 	_swapchain_format = format.format();
 }
 
-bool renderer::render(vk::Fence fence)
+double renderer::render(vk::Fence fence)
 {
 	if (_need_setup)
 		flush_setup();
@@ -462,11 +463,19 @@ bool renderer::render(vk::Fence fence)
 		vk::PipelineStageFlags pipeline_stage_flags{ vk::PipelineStageFlagBits::eTransfer };
 		vk::SubmitInfo submit_info{ 1, &_image_available_semaphore, &pipeline_stage_flags, 1, &_render_command_buffers[_current_image_index], 1, &_rendering_finished_semaphore };
 
+		auto render_begin = std::chrono::steady_clock::now();
 		_graphics_queue.submit(submit_info, fence);
-		return true;
+		if(fence)
+		{
+			_device.waitForFence(fence, true, UINT64_MAX);
+			auto render_end = std::chrono::steady_clock::now();
+			std::chrono::duration<double> render_time = render_end - render_begin;
+			_device.resetFence(fence);
+			return render_time.count();
+		}
 	}
 	//	renderer.window_size_changed();
-	return false;
+	return 0.0;
 }
 
 void renderer::present() const

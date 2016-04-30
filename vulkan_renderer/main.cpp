@@ -214,29 +214,15 @@ int main()
 			last_time = current_time;
 			cam.update(dt.count(), g_input_state);
 			nanosuit.update(dt.count());
-
-			auto render_begin = std::chrono::steady_clock::now();
-			if(renderer.render(render_fence))
+			auto render_time = renderer.render(render_fence);
+			if(render_time>0.0)
 			{
-				device.waitForFence(render_fence, true, UINT64_MAX);
-
-				auto render_end = std::chrono::steady_clock::now();
-				std::chrono::duration<double> render_time = render_end - render_begin;
-
-				device.resetFence(render_fence);
-
-				renderer.present();
-
 				char title[256];
-				snprintf(title, 256, "frame time : %f ms -- render time %f ms", dt.count()*1000.0, render_time.count()*1000.0);
+				snprintf(title, 256, "frame time : %f ms -- render time %f ms", dt.count()*1000.0, render_time*1000.0);
 				glfwSetWindowTitle(renderer.window_handle(), title);
 				glfwPollEvents();
-
 			}
-			
-			
-
-		
+			renderer.present();
 		}
 	}
 	
