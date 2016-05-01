@@ -1,6 +1,7 @@
 #include "vulkan_helpers.h"
 
 #include "vulkan_include.h"
+#include "renderer.h"
 
 void set_image_layout(	vk::CommandBuffer cmdbuffer,
 						vk::Image image,
@@ -91,3 +92,22 @@ void set_image_layout(	vk::CommandBuffer cmdbuffer,
 
 	cmdbuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTopOfPipe, {}, {}, {}, { imageMemoryBarrier });
 }
+
+staging_buffer::staging_buffer(renderer& renderer, size_t size) : _renderer(renderer)
+{
+	auto device = _renderer.device();
+	_buffer = device.createBuffer(vk::BufferCreateInfo{ {}, size, vk::BufferUsageFlagBits::eTransferSrc, vk::SharingMode::eExclusive,0,nullptr });
+	auto mem_reqs = device.getBufferMemoryRequirements(_buffer);
+	_memory = device.allocateMemory(vk::MemoryAllocateInfo{ mem_reqs.size(), _renderer.find_adequate_memory(mem_reqs, vk::MemoryPropertyFlagBits::eHostVisible) });
+	device.bindBufferMemory(_buffer, _memory, 0);
+	_size = mem_reqs.size();
+	_mapped_memory = device.mapMemory(_memory, 0, mem_reqs.size(), {});
+}
+
+staging_buffer::~staging_buffer()
+{
+	_renderer.device().unmapMemory(_memory);
+	_renderer.device().destroyBuffer(_buffer);
+	_renderer.device().freeMemory(_memory);
+}
+

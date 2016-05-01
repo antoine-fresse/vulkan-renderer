@@ -53,7 +53,7 @@ int main()
 	std::vector<const char*> instance_extensions;
 	std::vector<const char*> device_extensions;
 
-#if 0
+#if 1
 	instance_layers.push_back("VK_LAYER_RENDERDOC_Capture");
 	device_layers.push_back("VK_LAYER_RENDERDOC_Capture");
 #endif
@@ -95,7 +95,7 @@ int main()
 
 		const vk::Sampler* default_sampler = &renderer.tex_manager().default_sampler();
 		pipeline_desc.descriptor_set_layouts_description = {
-			{ vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr } },
+			{ vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, nullptr } },
 			{ vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr } },
 			{	vk::DescriptorSetLayoutBinding{ 0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, default_sampler },
 				vk::DescriptorSetLayoutBinding{ 1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, default_sampler } ,
@@ -106,8 +106,6 @@ int main()
 		pipeline_desc.push_constants.push_back({ vk::ShaderStageFlagBits::eFragment, 0, sizeof(model::material::info) });
 
 		pipeline forward_rendering_pipeline{ renderer, render_pass, pipeline_desc };
-		//forward_rendering_pipeline.create_depth_buffer(texture::description{ renderer.depth_format(),{ 800,SCREEN_HEIGHT }, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eTransferSrc, vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil, vk::MemoryPropertyFlagBits::eDeviceLocal, vk::AccessFlagBits::eDepthStencilAttachmentWrite });
-		//texture* depth_buffer = forward_rendering_pipeline.depth_buffer();
 
 		std::vector<vk::ImageView> views(swapchain_images.size());
 		std::vector<vk::Framebuffer> framebuffers(swapchain_images.size());
@@ -129,7 +127,7 @@ int main()
 			framebuffers[i] = device.createFramebuffer(framebuffer_create_info);
 		}
 
-		model nanosuit{ "data/nanosuit.obj", renderer, 3.0f };
+		model nanosuit{ "data/akai.fbx", renderer, 0.2f };
 		model sponza{ "data/sponza.obj", renderer, 1.0f };
 		cam.attach(forward_rendering_pipeline, 0);
 		

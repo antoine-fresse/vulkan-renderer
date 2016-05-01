@@ -165,7 +165,9 @@ void renderer::init_device()
 	_rendering_finished_semaphore = _device.createSemaphore({});
 	_image_available_semaphore = _device.createSemaphore({});
 
+	_pipeline_cache = _device.createPipelineCache(vk::PipelineCacheCreateInfo{ {}, 0, nullptr });
 }
+
 
 
 #if USE_VULKAN_DEBUG_LAYERS

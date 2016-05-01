@@ -8,6 +8,50 @@
 #define STBI_ASSERT(x)
 #include "stb/stb_image.h"
 
+texture::texture(const void* data, uint32_t size, renderer& renderer) : _renderer(renderer), _image_layout(vk::ImageLayout::eShaderReadOnlyOptimal)
+{
+	int x, y, comp;
+	stbi_set_flip_vertically_on_load(true);
+	unsigned char *stb_data = stbi_load_from_memory((const unsigned char*)data, size, &x, &y, &comp, 4);
+	stbi_set_flip_vertically_on_load(false);
+
+	_width = x;
+	_height = y;
+	_mip_levels = 1;
+
+	description desc{ vk::Format::eR8G8B8A8Unorm ,{ _width, _height }, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst, vk::ImageAspectFlagBits::eColor, vk::AccessFlagBits::eShaderRead };
+	init_image(desc);
+
+	staging_buffer staging_buffer(_renderer, _width*_height * 4);
+	memcpy(staging_buffer.data(), stb_data, _width*_height * 4);
+	vk::BufferImageCopy copy{ 0, 0, 0, vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 },{},{ _width, _height, 1 } };
+	auto cmd = _renderer.setup_cmd_buffer();
+	set_image_layout(cmd, _image, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::ePreinitialized, vk::ImageLayout::eTransferDstOptimal);
+	cmd.copyBufferToImage(staging_buffer, _image, vk::ImageLayout::eTransferDstOptimal, { copy });
+	set_image_layout(cmd, _image, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, _image_layout);
+	_renderer.flush_setup();
+
+}
+
+texture::texture(const void* data, uint32_t width, uint32_t height, renderer& renderer) : _renderer(renderer), _image_layout(vk::ImageLayout::eShaderReadOnlyOptimal)
+{
+	_width = width;
+	_height = height;
+	_mip_levels = 1;
+
+	description desc{ vk::Format::eR8G8B8A8Unorm ,{ _width, _height }, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst, vk::ImageAspectFlagBits::eColor, vk::AccessFlagBits::eShaderRead };
+	init_image(desc);
+
+	staging_buffer staging_buffer(_renderer, _width*_height * 4);
+	memcpy(staging_buffer.data(), data, _width*_height * 4);
+	vk::BufferImageCopy copy{ 0, 0, 0, vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 },{},{ _width, _height, 1 } };
+	auto cmd = _renderer.setup_cmd_buffer();
+	set_image_layout(cmd, _image, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::ePreinitialized, vk::ImageLayout::eTransferDstOptimal);
+	cmd.copyBufferToImage(staging_buffer, _image, vk::ImageLayout::eTransferDstOptimal, { copy });
+	set_image_layout(cmd, _image, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, _image_layout);
+	_renderer.flush_setup();
+}
+
 texture::texture(const std::string& filepath, renderer& renderer) : _renderer(renderer), _image_layout(vk::ImageLayout::eShaderReadOnlyOptimal)
 {
 	int x, y, comp;
@@ -21,30 +65,18 @@ texture::texture(const std::string& filepath, renderer& renderer) : _renderer(re
 	_width = x;
 	_height = y;
 	_mip_levels = 1;
-
+	
 	description desc{ vk::Format::eR8G8B8A8Unorm , {_width, _height}, vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst, vk::ImageAspectFlagBits::eColor, vk::AccessFlagBits::eShaderRead };
 	init_image(desc);
 
-	auto device = _renderer.device();
-	vk::Buffer staging_buffer = device.createBuffer(vk::BufferCreateInfo{ {}, _width*_height * 4, vk::BufferUsageFlagBits::eTransferSrc, vk::SharingMode::eExclusive,0,nullptr });
-	auto mem_reqs = device.getBufferMemoryRequirements(staging_buffer);
-	vk::DeviceMemory staging_memory = device.allocateMemory(vk::MemoryAllocateInfo{ mem_reqs.size(), _renderer.find_adequate_memory(mem_reqs, vk::MemoryPropertyFlagBits::eHostVisible) });
-	device.bindBufferMemory(staging_buffer, staging_memory, 0);
-	
-	void * mapped_memory = device.mapMemory(staging_memory, 0, mem_reqs.size(), {});
-	memcpy(mapped_memory, data, _width*_height * 4);
-	device.unmapMemory(staging_memory);
-
+	staging_buffer staging_buffer(_renderer, _width*_height * 4);
+	memcpy(staging_buffer.data(), data, _width*_height * 4);
 	vk::BufferImageCopy copy{ 0, 0, 0, vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1}, {}, {_width, _height, 1 } };
-
 	auto cmd = _renderer.setup_cmd_buffer();
 	set_image_layout(cmd, _image, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::ePreinitialized, vk::ImageLayout::eTransferDstOptimal);
 	cmd.copyBufferToImage(staging_buffer, _image, vk::ImageLayout::eTransferDstOptimal, { copy });
 	set_image_layout(cmd, _image, vk::ImageAspectFlagBits::eColor, vk::ImageLayout::eTransferDstOptimal, _image_layout);
 	_renderer.flush_setup();
-
-	device.destroyBuffer(staging_buffer);
-	device.freeMemory(staging_memory);
 }
 
 

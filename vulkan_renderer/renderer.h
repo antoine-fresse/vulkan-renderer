@@ -31,6 +31,7 @@ public:
 	bool									ready()							const { return _ready;	}
 	const std::vector<vk::CommandBuffer>&	render_command_buffers()		const { return _render_command_buffers;	}
 	vk::Format								depth_format()					const { return _depth_format; }
+	vk::PipelineCache						pipeline_cache()				const { return _pipeline_cache;	}
 
 	texture_manager&						tex_manager() { return _texture_manager; }
 	vk::ShaderModule						load_shader(const std::string& filename) const;
@@ -49,6 +50,8 @@ private:
 
 	void init_instance();
 	void init_device();
+
+	void init_pipeline_cache();
 
 	void setup_debug();
 	
@@ -79,6 +82,8 @@ private:
 
 	vk::DebugReportCallbackEXT				_debug_report_callback;
 	vk::DebugReportCallbackCreateInfoEXT	_debug_report_callback_create_info;
+
+	vk::PipelineCache						_pipeline_cache;
 
 	std::vector<const char*>				_instance_layers;
 	std::vector<const char*>				_instance_extensions;

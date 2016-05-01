@@ -40,7 +40,7 @@ pipeline::pipeline(renderer& renderer, vk::RenderPass render_pass, const descrip
 
 	vk::GraphicsPipelineCreateInfo graphics_pipeline_create_info{ {}, (uint32_t)shader_stages_ci.size(), shader_stages_ci.data(), &vertex_input_state_create_info, &input_assembly_state_create_info, nullptr, &viewport_state_create_info,&rasterization_state_create_info, &multisample_state_create_info, &depth_stencil_create_info, &color_blend_state_create_info, nullptr, _pipeline_layout, render_pass, 0, VK_NULL_HANDLE, -1 };
 
-	_pipeline = _renderer.device().createGraphicsPipeline(VK_NULL_HANDLE, graphics_pipeline_create_info);
+	_pipeline = _renderer.device().createGraphicsPipeline(_renderer.pipeline_cache(), graphics_pipeline_create_info);
 
 	// TODO(antoine) implement auto deleter/defer mechanism
 	_renderer.device().destroyShaderModule(vertex_shader_module);

@@ -39,7 +39,7 @@ void model::load_model(const std::string& filepath, float scale)
 {
 	Assimp::Importer importer;
 
-	uint32_t flags = aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_OptimizeMeshes | aiProcess_SortByPType | aiProcess_RemoveRedundantMaterials;
+	uint32_t flags = aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_SortByPType;
 	const aiScene* scene = importer.ReadFile(filepath, flags);
 	
 	if (!scene)
@@ -52,6 +52,14 @@ void model::load_model(const std::string& filepath, float scale)
 	std::vector<uint32_t> indices;
 
 	std::vector<int32_t> material_assoc(scene->mNumMaterials, -1);
+
+	for (uint32_t i = 0; i < scene->mNumTextures; ++i)
+	{
+		if(scene->mTextures[i]->mHeight == 0)
+			_renderer.tex_manager().create_texture_from_file_buffer(filepath + "*" + std::to_string(i), scene->mTextures[i]->pcData, scene->mTextures[i]->mWidth);
+		else
+			_renderer.tex_manager().create_texture_from_rgba_buffer(filepath + "*" + std::to_string(i), scene->mTextures[i]->pcData, scene->mTextures[i]->mWidth, scene->mTextures[i]->mHeight);
+	}
 
 	for (uint32_t i = 0; i < scene->mNumMaterials; ++i)
 	{
@@ -72,31 +80,34 @@ void model::load_model(const std::string& filepath, float scale)
 
 		if (mat->GetTexture(aiTextureType_DIFFUSE, 0, &diffuse_path) == AI_SUCCESS)
 		{
-			material.diffuse_texture = _renderer.tex_manager().find_texture(diffuse_path.C_Str());
+			const char* path = diffuse_path.C_Str();
+			material.diffuse_texture = _renderer.tex_manager().create_texture_from_file(path[0] == '*' ? filepath + path : path);
 			material.mat_info.diffuse_color.a = 1.0f;
 		}
 		else
 		{
-			material.diffuse_texture = _renderer.tex_manager().find_texture("missing_texture.png");
+			material.diffuse_texture = _renderer.tex_manager().create_texture_from_file("missing_texture.png");
 			material.mat_info.diffuse_color.a = -1.0f;
 		}
 		if (mat->GetTexture(aiTextureType_NORMALS, 0, &normal_path) == AI_SUCCESS)
 		{
-			material.normal_texture = _renderer.tex_manager().find_texture(normal_path.C_Str());
+			const char* path = normal_path.C_Str();
+			material.normal_texture = _renderer.tex_manager().create_texture_from_file(path[0] == '*' ? filepath + path : path);
 			material.mat_info.normal_map_intensity = 1.0f;
 		}
 		else
 		{
-			material.normal_texture = _renderer.tex_manager().find_texture("missing_texture.png");
+			material.normal_texture = _renderer.tex_manager().create_texture_from_file("missing_texture.png");
 		}
 		if (mat->GetTexture(aiTextureType_SPECULAR, 0, &spec_path) == AI_SUCCESS)
 		{
-			material.specular_texture = _renderer.tex_manager().find_texture(spec_path.C_Str());
+			const char* path = spec_path.C_Str();
+			material.specular_texture = _renderer.tex_manager().create_texture_from_file(path[0] == '*' ? filepath + path : path);
 			mat->Get(AI_MATKEY_SHININESS, material.mat_info.specular_intensity);
 		}
 		else
 		{
-			material.specular_texture = _renderer.tex_manager().find_texture("missing_texture.png");
+			material.specular_texture = _renderer.tex_manager().create_texture_from_file("missing_texture.png");
 		}
 
 		aiColor3D color(1.0f,1.0f,1.0f);
@@ -133,13 +144,13 @@ void model::load_model(const std::string& filepath, float scale)
 		
 		if ((i_mesh->mPrimitiveTypes & aiPrimitiveType_TRIANGLE) == 0) continue;
 
-		uint32_t current_mesh_vertex_offset = vertices.size();
 
 		const float fmax = std::numeric_limits<float>::max();
 		const float fmin = std::numeric_limits<float>::min();
 
 		std::pair<glm::vec3, glm::vec3> bbox(glm::vec3(fmax, fmax, fmax), glm::vec3(fmin, fmin, fmin));
 		
+		uint32_t current_mesh_vertex_offset = vertices.size();
 		for (uint32_t k = 0; k < i_mesh->mNumVertices; ++k)
 		{
 			vertex vert;
@@ -161,11 +172,41 @@ void model::load_model(const std::string& filepath, float scale)
 			indices.push_back(i_mesh->mFaces[k].mIndices[0]);
 			indices.push_back(i_mesh->mFaces[k].mIndices[1]);
 			indices.push_back(i_mesh->mFaces[k].mIndices[2]);
+
+			/* 
+			// Manual calc of tangents
+			vertex& v0 = vertices[current_mesh_vertex_offset + i_mesh->mFaces[k].mIndices[0]];
+			vertex& v1 = vertices[current_mesh_vertex_offset + i_mesh->mFaces[k].mIndices[1]];
+			vertex& v2 = vertices[current_mesh_vertex_offset + i_mesh->mFaces[k].mIndices[2]];
+			glm::vec3 edge_1 = v1.position - v0.position;
+			glm::vec3 edge_2 = v2.position - v0.position;
+
+			float delta_u1 = v1.uv.x - v0.uv.x;
+			float delta_v1 = v1.uv.y - v0.uv.y;
+			float delta_u2 = v2.uv.x - v0.uv.x;
+			float delta_v2 = v2.uv.y - v0.uv.y;
+
+			float f = 1.0f / (delta_u1*delta_v2 - delta_u2*delta_v1);
+
+			glm::vec3 tangent;
+			tangent.x = f*(delta_v2*edge_1.x - delta_v1*edge_2.x);
+			tangent.y = f*(delta_v2*edge_1.y - delta_v1*edge_2.y);
+			tangent.z = f*(delta_v2*edge_1.z - delta_v1*edge_2.z);
+
+			v0.tangent += tangent;
+			v1.tangent += tangent;
+			v2.tangent += tangent;
+			*/
+
 		}
 		
 		std::pair<glm::vec3, float> bsphere((bbox.first + bbox.second)*0.5f, glm::distance(bbox.first, bbox.second)/2 );
-
 		_meshes.emplace_back(current_mesh_vertex_offset*sizeof(vertex), current_mesh_index_offset*sizeof(uint32_t), i_mesh->mNumFaces * 3, material_assoc[i_mesh->mMaterialIndex], bsphere, bbox);
+	}
+
+	for (auto& vert : vertices)
+	{
+		vert.tangent = glm::normalize(vert.tangent);
 	}
 
 	vk::Device device = _renderer.device();
@@ -238,7 +279,7 @@ void model::draw(const vk::CommandBuffer& cmd, pipeline& pipeline, const camera&
 	{
 		if (camera.cull_sphere(m.bounding_sphere)) continue;
 
-		if (m.material_index != last_m_index)
+		//if (m.material_index != last_m_index)
 		{
 			vk::DescriptorSet set = *_materials[m.material_index].textures_set;
 			cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.pipeline_layout(), 2, 1, &set, 0, nullptr);

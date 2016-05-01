@@ -29,6 +29,8 @@ public:
 		vk::SampleCountFlagBits samples;
 	};
 
+	texture(const void* data, uint32_t size, renderer& renderer);
+	texture(const void* data, uint32_t width, uint32_t height, renderer& renderer);
 	texture(const std::string& filepath, renderer& renderer);
 	texture(const description& desc, renderer& renderer);
 

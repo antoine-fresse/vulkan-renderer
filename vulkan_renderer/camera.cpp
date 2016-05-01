@@ -23,7 +23,7 @@ camera::camera(renderer& renderer) : _renderer(renderer), _ubo(renderer, vk::Buf
 	_up_vector = glm::vec3(0, 1, 0);
 
 	recompute_cache();
-	_ubo.update(_cached_vpc);
+	_ubo.update({ _cached_vpc, _camera_position });
 }
 
 vk::DescriptorBufferInfo camera::descriptor_buffer_info() const
@@ -50,7 +50,7 @@ void camera::update(double dt, const input_state& inputs)
 	_camera_position += _view_vector*v.x + _right_vector*v.y;
 
 	recompute_cache();
-	_ubo.update(_cached_vpc);
+	_ubo.update({ _cached_vpc, _camera_position });
 }
 
 void camera::attach(pipeline& pipeline, uint32_t set_index)

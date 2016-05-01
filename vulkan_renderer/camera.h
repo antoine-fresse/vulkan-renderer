@@ -103,7 +103,13 @@ private:
 	glm::vec3 _right_vector; // X
 	glm::vec3 _camera_position;
 
-	single_ubo<glm::mat4, false> _ubo;
+	struct ubo_camera_contents
+	{
+		glm::mat4 vpc;
+		glm::vec3 eye_pos;
+	};
+
+	single_ubo<ubo_camera_contents, false> _ubo;
 
 	std::shared_ptr<managed_descriptor_set> _descriptor_set = nullptr;
 

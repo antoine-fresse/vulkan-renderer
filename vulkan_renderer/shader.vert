@@ -19,15 +19,17 @@ layout(set = 1, binding = 0) uniform UBO_model
 	mat4 mat;
 } ubo_model;
 
-layout (location = 0) out vec2 outUV;
-layout (location = 1) out vec3 outNormal;
-layout (location = 2) out vec3 outFragPos;
+layout (location = 0) out vec2 out_uv;
+layout (location = 1) out vec3 out_normal;
+layout (location = 2) out vec3 out_frag_pos;
+layout (location = 3) out vec3 out_tangent;
 
 void main() 
 {
-	outUV = uv;
-	outNormal = vec3(ubo_model.mat * vec4(normal, 0.0));
+	out_uv = uv;
+	out_normal = (ubo_model.mat * vec4(normal, 0.0)).xyz;
+	out_tangent = (ubo_model.mat * vec4(tangent, 0.0)).xyz;
 	vec4 world_pos = ubo_model.mat * vec4(position, 1.0);
-	outFragPos = vec3(world_pos);
+	out_frag_pos = vec3(world_pos);
 	gl_Position = ubo_view.mat * world_pos;
 }
