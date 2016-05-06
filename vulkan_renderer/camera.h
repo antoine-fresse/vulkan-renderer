@@ -111,7 +111,7 @@ private:
 
 	single_ubo<ubo_camera_contents, false> _ubo;
 
-	std::shared_ptr<managed_descriptor_set> _descriptor_set = nullptr;
+	std::unique_ptr<managed_descriptor_set> _descriptor_set = nullptr;
 
 	// Culling Info
 	glm::vec3 _cam_x, _cam_y, _cam_z;
