@@ -51,8 +51,6 @@ private:
 	void init_instance();
 	void init_device();
 
-	void init_pipeline_cache();
-
 	void setup_debug();
 	
 	void init_debug();
@@ -63,7 +61,7 @@ private:
 	void create_window_and_surface(uint32_t width, uint32_t height, uint32_t buffering);
 	void recreate_swapchain(uint32_t buffering, uint32_t width, uint32_t height);
 
-	std::pair<uint32_t, uint32_t>	retrieve_queues_family_index();
+	std::pair<uint32_t, uint32_t>			retrieve_queues_family_index();
 
 	
 

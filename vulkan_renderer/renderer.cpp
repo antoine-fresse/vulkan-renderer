@@ -102,16 +102,12 @@ void renderer::init_instance()
 
 void renderer::init_device()
 {
-	VkResult err = VK_SUCCESS;
-	
 	std::vector<vk::PhysicalDevice> physical_devices = _instance.enumeratePhysicalDevices();
 	_gpu = physical_devices[0];
 
 	_memory_properties = _gpu.getMemoryProperties();
 	_gpu_properties = _gpu.getProperties();
 	
-
-
 	std::vector<vk::Format> depth_formats = {
 		vk::Format::eD32SfloatS8Uint,
 		vk::Format::eD32Sfloat,
@@ -131,6 +127,7 @@ void renderer::init_device()
 			break;
 		}
 	}
+
 	if (_depth_format == vk::Format::eUndefined)
 		throw renderer_exception("Cannot find suitable depth format");
 

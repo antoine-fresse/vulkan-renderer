@@ -16,6 +16,15 @@
     <Filter Include="Header Files\stb">
       <UniqueIdentifier>{f4f5d569-9b81-4738-83b5-3960d108d55f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\concurrentqueue">
+      <UniqueIdentifier>{8dca4c26-c317-42d5-ba2e-96b466d31ce4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\thread">
+      <UniqueIdentifier>{06e661ba-3571-4511-9993-7babd8e009d3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\thread">
+      <UniqueIdentifier>{1bd182f4-4e13-4ae1-853e-53f193612515}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="config_defines.h">
@@ -66,6 +75,21 @@
     <ClInclude Include="vulkan_helpers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="concurrentqueue\blockingconcurrentqueue.h">
+      <Filter>Header Files\concurrentqueue</Filter>
+    </ClInclude>
+    <ClInclude Include="concurrentqueue\concurrentqueue.h">
+      <Filter>Header Files\concurrentqueue</Filter>
+    </ClInclude>
+    <ClInclude Include="thread\multitasker.h">
+      <Filter>Header Files\thread</Filter>
+    </ClInclude>
+    <ClInclude Include="thread\fiber.h">
+      <Filter>Header Files\thread</Filter>
+    </ClInclude>
+    <ClInclude Include="thread\thread.h">
+      <Filter>Header Files\thread</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -94,6 +118,15 @@
     </ClCompile>
     <ClCompile Include="vulkan_helpers.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="thread\fiber_win32.cpp">
+      <Filter>Source Files\thread</Filter>
+    </ClCompile>
+    <ClCompile Include="thread\multitasker.cpp">
+      <Filter>Source Files\thread</Filter>
+    </ClCompile>
+    <ClCompile Include="thread\thread_win32.cpp">
+      <Filter>Source Files\thread</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

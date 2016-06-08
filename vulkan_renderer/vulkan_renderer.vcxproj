@@ -69,19 +69,19 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;..\..\libs\glm\;..\..\libs\assimp\include;..\..\libs\gli;$(IncludePath)</IncludePath>
+    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;..\..\libs\glm\;..\..\libs\assimp\include;..\..\libs\gli;.;$(IncludePath)</IncludePath>
     <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin32;..\..\libs\assimp\build\code\Debug;..\..\libs\glfw\build\src\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;..\..\libs\glm\;..\..\libs\assimp\include;..\..\libs\gli;$(IncludePath)</IncludePath>
+    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;..\..\libs\glm\;..\..\libs\assimp\include;..\..\libs\gli;.;$(IncludePath)</IncludePath>
     <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin32;..\..\libs\assimp\build\code\Release;..\..\libs\glfw\build\src\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;..\..\libs\glm\;..\..\libs\assimp\include;..\..\libs\gli;$(IncludePath)</IncludePath>
+    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;..\..\libs\glm\;..\..\libs\assimp\include;..\..\libs\gli;.;$(IncludePath)</IncludePath>
     <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin;..\..\libs\assimp\build64\code\Debug;..\..\libs\glfw\build64\src\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;..\..\libs\glm\;..\..\libs\assimp\include;..\..\libs\gli;$(IncludePath)</IncludePath>
+    <IncludePath>C:\VulkanSDK\1.0.8.0\Include;..\..\libs\glfw\include;..\..\libs\glm\;..\..\libs\assimp\include;..\..\libs\gli;.;$(IncludePath)</IncludePath>
     <LibraryPath>C:\VulkanSDK\1.0.8.0\Bin;..\..\libs\assimp\build64\code\Release;..\..\libs\glfw\build64\src\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -134,6 +134,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="camera.h" />
+    <ClInclude Include="concurrentqueue\blockingconcurrentqueue.h" />
+    <ClInclude Include="concurrentqueue\concurrentqueue.h" />
     <ClInclude Include="config_defines.h" />
     <ClInclude Include="math_include.h" />
     <ClInclude Include="model.h" />
@@ -144,6 +146,9 @@
     <ClInclude Include="stb\stb_image.h" />
     <ClInclude Include="texture.h" />
     <ClInclude Include="texture_manager.h" />
+    <ClInclude Include="thread\fiber.h" />
+    <ClInclude Include="thread\multitasker.h" />
+    <ClInclude Include="thread\thread.h" />
     <ClInclude Include="ubo.h" />
     <ClInclude Include="vk_cpp.hpp" />
     <ClInclude Include="vulkan_helpers.h" />
@@ -159,6 +164,9 @@
     <ClCompile Include="render_pass.cpp" />
     <ClCompile Include="texture.cpp" />
     <ClCompile Include="texture_manager.cpp" />
+    <ClCompile Include="thread\fiber_win32.cpp" />
+    <ClCompile Include="thread\multitasker.cpp" />
+    <ClCompile Include="thread\thread_win32.cpp" />
     <ClCompile Include="vulkan_helpers.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

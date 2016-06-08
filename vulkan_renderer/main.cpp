@@ -5,9 +5,13 @@
 #include "pipeline.h"
 #include "render_pass.h"
 
+#include <thread/multitasker.h>
+#include <thread/thread.h>
+
 #include "shared.h"
 
 #include <chrono>
+
 
 static input_state g_input_state = {};
 
@@ -62,13 +66,16 @@ int main()
 	instance_layers.push_back("VK_LAYER_RENDERDOC_Capture");
 	device_layers.push_back("VK_LAYER_RENDERDOC_Capture");
 #endif
-
-	
 	
 	renderer renderer{ SCREEN_WIDTH, SCREEN_HEIGHT, 3, instance_layers , instance_extensions, device_layers, device_extensions };
+	
+	uint32_t processor_count = kth::get_processor_count();
+	kth::Multitasker tasker{ processor_count, 64, [&](int worker_index)
+	{
+		
+	} };
 
-		
-		
+	
 
 	vk::Device device = renderer.device();
 	auto swapchain_images = renderer.swapchain_images();
